@@ -669,7 +669,7 @@ def set_future_permissions(room, sid):
 
 
 @rooms.get("/room/<Room:room>/pollInfo/<int:info_updated>")
-@auth.read_required
+@auth.accessible_required
 def poll_room_info(room, info_updated):
     """
     Polls a room for metadata updates.

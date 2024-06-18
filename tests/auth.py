@@ -39,7 +39,9 @@ def x_sogs_raw(
     ts = int(time.time()) + timestamp_off
 
     if blinded25:
-        kA, ka = blinding.blind25_key_pair(s.encode(), sogs.crypto.server_pubkey_bytes)
+        blind25_keypair = blinding.blind25_key_pair(s.encode(), sogs.crypto.server_pubkey_bytes)
+        kA = blind25_keypair.pubkey
+        ka = blind25_keypair.privkey
         pubkey = '25' + kA.hex()
     elif blinded15:
         a = s.to_curve25519_private_key().encode()

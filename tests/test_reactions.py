@@ -98,7 +98,12 @@ def test_reactions(client, room, room2, user, user2, mod, admin, global_mod, glo
             'reactors': [u.session_id for u in (user, user2, global_admin, mod)],
             'you': True,
         },
-        '🖕': {'index': 0, 'count': 2, 'reactors': [user.session_id, user2.session_id], 'you': True},
+        '🖕': {
+            'index': 0,
+            'count': 2,
+            'reactors': [user.session_id, user2.session_id],
+            'you': True,
+        },
         '🦒🦍🐍🐊🦢🦁🦎': {'index': 6, 'count': 1, 'reactors': [user.session_id]},
         '🂤': {
             'index': 7,

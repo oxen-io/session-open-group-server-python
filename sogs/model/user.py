@@ -18,6 +18,7 @@ class User:
         id - the database primary key for this user row
         session_id - the 25-blinded session_id of the user, in hex
         using_id - the session_id being used by the user, in hex
+        alt_id - True if the user is using their 05- or 15-blinded ID
         created - unix timestamp when the user was created
         last_active - unix timestamp when the user was last active
         banned - True if the user is (globally) banned
@@ -108,6 +109,9 @@ class User:
             self.using_id = self.session_id
 
         self.is_blinded = not self.using_id.startswith('05')
+        self.alt_id = False
+        if self.using_id != self.session_id:
+            self.alt_id = True
 
     def __str__(self):
         """Returns string representation of a user: U[050123…cdef], the id prefixed with @ or % if

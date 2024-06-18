@@ -42,6 +42,7 @@ STATIC_PATH = 'static'
 UPLOAD_PATH = 'uploads'
 ROOM_OVERRIDES = {}
 FILTER_SETTINGS = {}
+USE_OLD_SOGS_FILTERING = True
 
 # Will be true if we're running as a uwsgi app, false otherwise; used where we need to do things
 # only in one case or another (e.g. database initialization only via app mode).
@@ -160,6 +161,7 @@ def load_config():
             'alphabet_filters': ('ALPHABET_FILTERS', None, set_of_strs),
             'alphabet_silent': bool_opt('ALPHABET_SILENT'),
             'filter_mods': bool_opt('FILTER_MODS'),
+            'use_old_sogs_filtering': bool_opt('USE_OLD_SOGS_FILTERING'),
         },
         'web': {
             'template_path': ('TEMPLATE_PATH', path_exists, val_or_none),

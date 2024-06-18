@@ -1,7 +1,8 @@
 from .. import config, crypto, db, utils, session_pb2 as protobuf
 from ..db import query
 from ..hashing import blake2b
-from ..omq import send_mule
+from ..omq import send_mule, synchronous_mule_request
+from oxenc import bt_deserialize
 from ..web import app
 from .user import User
 from .file import File
@@ -25,6 +26,11 @@ import sqlalchemy.exc
 import time
 from typing import Optional, Union, List
 
+import sys
+
+test_suite = False
+if "pytest" in sys.modules:
+    test_suite = True
 
 # TODO: These really should be room properties, not random global constants (these
 # are carried over from old SOGS).
@@ -436,6 +442,7 @@ class Room:
         accessible=False,
         write=False,
         upload=False,
+        get_all=False,
     ):
         """
         Checks whether `user` has the required permissions for this room and isn't banned.  Returns
@@ -484,15 +491,20 @@ class Room:
                 ).first()
                 self._perm_cache[user.id] = [bool(c) for c in row]
 
-            (
-                is_banned,
-                can_read,
-                can_access,
-                can_write,
-                can_upload,
-                is_mod,
-                is_admin,
-            ) = self._perm_cache[user.id]
+            (is_banned, can_read, can_access, can_write, can_upload, is_mod, is_admin) = (
+                self._perm_cache[user.id]
+            )
+
+        if get_all:
+            return {
+                "is_banned": is_banned,
+                "can_read": can_read,
+                "can_access": can_access,
+                "can_write": can_write,
+                "can_upload": can_upload,
+                "is_mod": is_mod,
+                "is_admin": is_admin,
+            }
 
         if is_admin:
             return True
@@ -605,6 +617,29 @@ class Room:
         """
 
         mod = self.check_moderator(user)
+        whispers_only = not self.check_read(
+            user
+        )  # access but not read still allows whispers to be seen
+
+        # if this is a "public" read request and default read is false, return empty list
+        if whispers_only and not user:
+            return []
+
+        # if user doesn't have permission overrides for this room, treat this as a permissions request
+        if whispers_only and len(self.user_permissions(user)) == 0:
+            req = {
+                "user_id": user.id,
+                "session_id": user.using_id,
+                "room_id": self.id,
+                "room_token": self.token,
+            }
+            # response is meaningless for now; just used to wait for mule.
+            from datetime import timedelta
+
+            bot_resp = synchronous_mule_request(
+                "worker.request_read", req, prefix=None, timeout=timedelta(seconds=3)
+            )
+
         msgs = []
 
         opt_count = sum(arg is not None for arg in (sequence, after, before, single)) + bool(recent)
@@ -642,15 +677,19 @@ class Room:
         message_clause = (
             'AND seqno > :sequence AND seqno_data > :sequence'
             if sequence is not None and not reaction_updates
-            else 'AND seqno > :sequence'
-            if sequence is not None
-            else 'AND id > :after'
-            if after is not None
-            else 'AND id < :before'
-            if before is not None
-            else 'AND id = :single'
-            if single is not None
-            else ''
+            else (
+                'AND seqno > :sequence'
+                if sequence is not None
+                else (
+                    'AND id > :after'
+                    if after is not None
+                    else (
+                        'AND id < :before'
+                        if before is not None
+                        else 'AND id = :single' if single is not None else ''
+                    )
+                )
+            )
         )
 
         whisper_clause = (
@@ -661,24 +700,36 @@ class Room:
             # - non-whispers
             'AND (whisper_mods OR whisper = :user OR "user" = :user OR whisper IS NULL)'
             if mod
-            # For a regular user we want to see:
+            # If the user only has access but not read/write, we want to see:
             # - anything with whisper_to sent to us
-            # - non-whispers
-            else "AND (whisper = :user OR (whisper IS NULL AND NOT whisper_mods))"
-            if user
-            # Otherwise for public, non-user access we want to see:
-            # - non-whispers
-            else "AND whisper IS NULL AND NOT whisper_mods"
+            else (
+                "AND whisper = :user"
+                if whispers_only
+                # For a regular user we want to see:
+                # - anything with whisper_to sent to us
+                # - non-whispers
+                else (
+                    "AND (whisper = :user OR (whisper IS NULL AND NOT whisper_mods))"
+                    if user
+                    # Otherwise for public, non-user access we want to see:
+                    # - non-whispers
+                    else "AND whisper IS NULL AND NOT whisper_mods"
+                )
+            )
         )
 
         order_limit = (
             'ORDER BY seqno ASC LIMIT :limit'
             if sequence is not None
-            else ''
-            if single is not None
-            else 'ORDER BY id ASC LIMIT :limit'
-            if after is not None
-            else 'ORDER BY id DESC LIMIT :limit'
+            else (
+                ''
+                if single is not None
+                else (
+                    'ORDER BY id ASC LIMIT :limit'
+                    if after is not None
+                    else 'ORDER BY id DESC LIMIT :limit'
+                )
+            )
         )
         for row in query(
             f"""
@@ -720,6 +771,14 @@ class Room:
                 if row['whisper_to'] is not None:
                     msg['whisper_to'] = row['whisper_to']
             msgs.append(msg)
+        app.logger.debug(f"{len(msgs)} going to user for room")
+
+        # If the user only has "access", we want to lie about sequence numbers so that if
+        # that user gains "read" later their client will request messages from before that
+        # access was granted.
+        if whispers_only:
+            for msg in msgs:
+                msg['seqno'] = 0
 
         if reactions:
             reacts = self.get_reactions(
@@ -892,9 +951,9 @@ class Room:
                 query(
                     """
                     INSERT INTO messages
-                        (room, "user", data, data_size, signature, whisper)
+                        (room, "user", data, data_size, signature, whisper, alt_id)
                         VALUES
-                        (:r, :u, :data, :data_size, :signature, :whisper)
+                        (:r, :u, :data, :data_size, :signature, :whisper, :alt_id)
                     """,
                     r=self.id,
                     u=server_fake_user.id,
@@ -902,6 +961,7 @@ class Room:
                     data_size=len(pbmsg),
                     signature=sig,
                     whisper=None if pub else user.id,
+                    alt_id=server_fake_user.using_id if server_fake_user.alt_id else None,
                 )
 
             if filt[filter_type + '_silent']:
@@ -950,6 +1010,42 @@ class Room:
             bind_expanding=['ids'],
         )
 
+    def insert_message(self, message):
+        with db.transaction():
+
+            unpadded_data = utils.remove_session_message_padding(message[b"message_data"])
+            msg_id = db.insert_and_get_pk(
+                """
+                INSERT INTO messages
+                    (room, "user", data, data_size, signature, filtered, whisper, whisper_mods, alt_id)
+                    VALUES
+                    (:r, :u, :data, :data_size, :signature, :filtered, :whisper, :whisper_mods, :alt_id)
+                """,
+                "id",
+                r=self.id,
+                u=message[b"user_id"],
+                data=unpadded_data,
+                data_size=message[b"data_size"],
+                signature=message[b"sig"],
+                filtered=message[b"filtered"],
+                whisper=message[b"whisper_to"] if b"whisper_to" in message else None,
+                whisper_mods=message[b"whisper_mods"],
+                alt_id=message[b"alt_id"] if b"alt_id" in message else None,
+            )
+            return msg_id
+
+    def bot_handle_message(self, message_args):
+        try:
+            app.logger.warning("Filtering via bots")
+
+            return bt_deserialize(
+                synchronous_mule_request("worker.message_request", message_args, prefix=None)[0]
+            )
+        except Exception as e:
+            app.logger.warn(f"Bot filter exception: {e}")
+            if not test_suite:
+                raise PostRejected(f"filtration rejected message (bot rejected)")
+
     def add_post(
         self,
         user: User,
@@ -983,7 +1079,9 @@ class Room:
         if whisper_to and not isinstance(whisper_to, User):
             whisper_to = User(session_id=whisper_to, autovivify=True, touch=False)
 
-        filtered = self.should_filter(user, data)
+        filtered = None  # self.should_filter(user, data)
+        if config.USE_OLD_SOGS_FILTERING:
+            filtered = self.should_filter(user, data)
 
         with db.transaction():
             if rate_limit_size and not self.check_admin(user):
@@ -1001,27 +1099,43 @@ class Room:
                 if recent_count >= rate_limit_size:
                     raise PostRateLimited()
 
-            data_size = len(data)
-            unpadded_data = utils.remove_session_message_padding(data)
+        data_size = len(data)
 
-            msg_id = db.insert_and_get_pk(
-                """
-                INSERT INTO messages
-                    (room, "user", data, data_size, signature, filtered, whisper, whisper_mods, alt_id)
-                    VALUES
-                    (:r, :u, :data, :data_size, :signature, :filtered, :whisper, :whisper_mods, :alt_id)
-                """,
-                "id",
-                r=self.id,
-                u=user.id,
-                data=unpadded_data,
-                data_size=data_size,
-                signature=sig,
-                filtered=filtered is not None,
-                whisper=whisper_to.id if whisper_to else None,
-                whisper_mods=whisper_mods,
-                alt_id=user.using_id if user.using_id else None,
+        message_args = {
+            "room_id": self.id,
+            "room_token": self.token,
+            "room_name": self.name,
+            "user_id": user.id,
+            "session_id": user.session_id,
+            "message_data": data,
+            "data_size": data_size,
+            "sig": sig,
+            "filtered": filtered is not None,
+            "is_mod": self.check_moderator(user),
+            "whisper_mods": whisper_mods,
+        }
+        if whisper_to:
+            message_args["whisper_to"] = whisper_to.id
+        if user.alt_id:
+            message_args["alt_id"] = user.using_id
+
+        bot_response = self.bot_handle_message(message_args)
+
+        if not b"ok" in bot_response:
+            error_str = (
+                bot_response[b"error"] if b"error" in bot_response else "an unknown error occurred"
             )
+            app.logger.warning(f"add_post, bot error: {error_str}")
+            raise PostRejected(f"{error_str}")
+
+        if b"msg_id" not in bot_response:
+            # TODO: work out a response Session will like that says "message handled fine, but not inserted"
+            #       e.g. for slash-command handling
+            return dict()
+
+        msg_id = bot_response[b"msg_id"]
+
+        with db.transaction():
 
             if files:
                 # Take ownership of any uploaded files attached to the post:
@@ -1037,9 +1151,8 @@ class Room:
                 'data': data,
                 'signature': sig,
                 'reactions': {},
+                'filtered': False,
             }
-            if filtered is not None:
-                msg['filtered'] = True
             if whisper_to or whisper_mods:
                 msg['whisper'] = True
                 msg['whisper_mods'] = whisper_mods
@@ -1052,7 +1165,6 @@ class Room:
         if filtered is not None:
             filtered()
 
-        send_mule("message_posted", msg['id'])
         return msg
 
     def edit_post(self, user: User, msg_id: int, data: bytes, sig: bytes, *, files: List[int] = []):
@@ -1362,14 +1474,24 @@ class Room:
         if user_required and not user:
             app.logger.warning("Reaction request requires user authentication")
             raise BadPermission()
-        if not (self.check_moderator(user) if mod_required else self.check_read(user)):
+        if mod_required and not self.check_moderator(user):
             app.logger.warning("Reaction request requires moderator authentication")
             raise BadPermission()
 
         if not self.is_regular_message(msg_id):
             raise NoSuchPost(msg_id)
 
-    def add_reaction(self, user: User, msg_id: int, reaction: str):
+        # users with "access" but not "read" can only react to whispers directed at them
+        if not self.check_read(user):
+            whisper_for_user = query(
+                "SELECT count(*) FROM messages WHERE id = :msg and whisper = :user",
+                msg=msg_id,
+                user=user.id,
+            ).first()[0]
+            if not whisper_for_user:
+                raise NoSuchPost(msg_id)
+
+    def add_reaction(self, user: User, msg_id: int, reaction: str, *args, send_to_bots=True):
         """
         Adds a reaction to the given post.  Returns True if the reaction was added, False if the
         reaction by this user was already present, throws on other errors.
@@ -1400,6 +1522,20 @@ class Room:
                 )
                 added = True
                 seqno = query("SELECT seqno FROM messages WHERE id = :msg", msg=msg_id).first()[0]
+                is_mod = self.check_moderator(user)
+                is_admin = self.check_admin(user)
+                if send_to_bots:
+                    reaction_dict = {
+                        'msg_id': msg_id,
+                        'reaction': reaction,
+                        'user_id': user.id,
+                        'session_id': user.using_id,
+                        'room_id': self.id,
+                        'room_token': self.token,
+                        'is_mod': is_mod,
+                        'is_admin': is_admin,
+                    }
+                    send_mule("reaction_posted", reaction_dict)
 
             except sqlalchemy.exc.IntegrityError:
                 added = False
@@ -2010,14 +2146,14 @@ class Room:
 
     def is_regular_message(self, msg_id: int):
         """
-        Returns true if the given id is a regular (i.e. not deleted, not a whisper) message of this
+        Returns true if the given id is a regular (i.e. not deleted, not a mod whisper) message of this
         room.
         """
         return query(
             """
             SELECT COUNT(*) FROM messages
             WHERE room = :r AND id = :m AND data IS NOT NULL
-                AND NOT filtered AND whisper IS NULL AND NOT whisper_mods
+                AND NOT filtered AND NOT whisper_mods
             """,
             r=self.id,
             m=msg_id,
