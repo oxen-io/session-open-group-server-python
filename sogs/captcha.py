@@ -1,6 +1,5 @@
 from PIL import Image, ImageDraw
 import random
-import numpy as np
 
 
 class Shape:
@@ -67,14 +66,6 @@ class Shape:
                 fill=self.color
             )
 
-    def is_overlapping(self, shapes):
-        for shape in shapes:
-            distance = abs(self.x1 - shape.x1)
-            print(distance, shape.x2 - shape.x1)
-            if distance < (shape.x2 - shape.x1) / 3:
-                return True
-        return False
-
 
 class Captcha:
 
@@ -114,12 +105,8 @@ class Captcha:
             x2 = x1 + random.randint(min_size_x, min(width - x1, int(width / 2)))
             y2 = y1 + random.randint(min_size_y, min(height - y1, int(height / 2)))
             shape = Shape(shape_type, color, x1, y1, x2, y2)
-            if shape.is_overlapping(shapes):
-                print("Overlapping")
-                continue
-            else:
-                shapes.append(shape)
-                shape.draw_shape(draw)
+            shapes.append(shape)
+            shape.draw_shape(draw)
 
         # Save the image
         image.save("shapes_image.png")

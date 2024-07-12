@@ -669,32 +669,6 @@ class SlashTestBot(Bot):
             return False
         return True
 
-class CaptchaBot(Bot):
-
-    def __init__(
-            self,
-            sogs_address,
-            sogs_pubkey,
-            privkey,
-            pubkey,
-            display_name,
-            retry_timeout=120,
-            write_timeout=120,
-    ):
-        self.answer_reaction = None
-
-        self.question = "Combined how many green rectangles and red hexagons in the image?"
-        self.pending_requests = {}  # map {session_id : {room_token : msg_id } }
-        self.retry_jail = {}
-        self.retry_timeout = retry_timeout
-        self.write_timeout = write_timeout
-
-        Bot.__init__(self, sogs_address, sogs_pubkey, privkey, pubkey, display_name)
-
-
-
-
-
 
 class PermissionBot(Bot):
 
