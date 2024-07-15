@@ -1,5 +1,6 @@
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFont
 import random
+import emoji
 
 
 class Shape:
@@ -69,17 +70,19 @@ class Shape:
 
 class Captcha:
 
+    FONT_PATH = 'NotoColorEmoji.ttf'
+    # Bitmap fonts don't support scaling with freetype, so you must specify a valid size,
+    # which is 109 for Noto Color Emoji.
+    FONT_SIZE = 109
+    EMOJI_LIST = {emoji_str for emoji_str, names in emoji.EMOJI_DATA.items() if 'skin_tone' not in str(names['en'])}
+
     def __init__(self):
-        self.question = "Combined how many green rectangles and red hexagons in the image?"
-        self.answer = None
-        # List of possible answer emojis
-        self.answer_set = ["\u0030\ufe0f\u20e3", "\u0031\ufe0f\u20e3", "\u0032\ufe0f\u20e3", "\u0033\ufe0f\u20e3",
-                           "\u0034\ufe0f\u20e3", "\u0035\ufe0f\u20e3", "\u0036\ufe0f\u20e3", "\u0037\ufe0f\u20e3",
-                           "\u0038\ufe0f\u20e3", "\u0039\ufe0f\u20e3", "\U0001F51F"]
+        self.question = "Please react with the emoji in the picture."
+        self.answer = random.choice(list(Captcha.EMOJI_LIST))
         # List of possible shapes
         self.shape_set = ["rectangle", "square", "pentagon", "hexagon", "circle", "triangle", "octagon", "oval"]
         # List of primary colors
-        self.color_set = ["red", "green", "blue"]
+        self.color_set = ["red", "green", "blue", "orange", "yellow"]
         self.captcha_image = "shapes_image.png"
         self.generate_captcha(width=400, height=200)
 
@@ -98,8 +101,6 @@ class Captcha:
         while len(shapes) < 10:
             shape_type = random.choice(self.shape_set)
             color = random_colors[len(shapes) - 1]
-            if shape_type == "rectangle" and color == "green" or shape_type == "hexagon" and color == "red":
-                answer += 1
             x1 = random.randint(0, width - min_size_x)
             y1 = random.randint(0, height - min_size_y)
             x2 = x1 + random.randint(min_size_x, min(width - x1, int(width / 2)))
@@ -108,12 +109,21 @@ class Captcha:
             shapes.append(shape)
             shape.draw_shape(draw)
 
+        emoji_x = random.randint(0, width - Captcha.FONT_SIZE)
+        emoji_y = random.randint(0, height - Captcha.FONT_SIZE)
+        draw.text(
+            (emoji_x, emoji_y),
+            self.answer,
+            font=ImageFont.truetype(Captcha.FONT_PATH, Captcha.FONT_SIZE),
+            fill="black"
+        )
+
         # Save the image
         image.save("shapes_image.png")
-
-        self.answer = self.answer_set[answer]
 
 
 if __name__ == '__main__':
     captcha = Captcha()
-    print(captcha.answer_set)
+    print(captcha.answer)
+    print(Captcha.EMOJI_LIST)
+    print(emoji.EMOJI_DATA['👩🏾‍🦳'])
