@@ -132,7 +132,7 @@ class Bot:
         # if not running, finish_init() will do this once connected
         if self.running:
             self.omq.send(
-                self.conn, f"bot.register_pre_commands", bt_serialize({"commands": [command]})
+                self.conn, f"bot.register_pre_commands", bt_serialize({"commands": ["request_read"]})
             )
 
     def handle_message_command(self, m: oxenmq.Message, pre_command: bool):
@@ -211,7 +211,7 @@ class Bot:
             request = bt_deserialize(m.dataview()[0])
             resp = self.filter(request)
             if resp not in self.FILTER_RESPONSES:
-                print(f"Bot.filter() must return one of {FILTER_RESPONSES}")
+                print(f"Bot.filter() must return one of {Bot.FILTER_RESPONSES}")
                 return bt_serialize("REJECT")
             print(f"filter_message returning '{resp}' as filter response")
             return bt_serialize(resp)

@@ -75,6 +75,8 @@ class Captcha:
     # which is 109 for Noto Color Emoji.
     FONT_SIZE = 109
     EMOJI_LIST = {emoji_str for emoji_str, names in emoji.EMOJI_DATA.items() if 'skin_tone' not in str(names['en'])}
+    WIDTH = 400
+    HEIGHT = 200
 
     def __init__(self):
         self.question = "Please react with the emoji in the picture."
@@ -84,7 +86,7 @@ class Captcha:
         # List of primary colors
         self.color_set = ["red", "green", "blue", "orange", "yellow"]
         self.captcha_image = "shapes_image.png"
-        self.generate_captcha(width=400, height=200)
+        self.generate_captcha(width=Captcha.WIDTH, height=Captcha.HEIGHT)
 
     def generate_captcha(self, width, height):
         # Create a new image with white background
@@ -121,9 +123,12 @@ class Captcha:
         # Save the image
         image.save("shapes_image.png")
 
+    def refresh(self):
+        self.answer = random.choice(list(Captcha.EMOJI_LIST))
+        self.generate_captcha(width=Captcha.WIDTH, height=Captcha.HEIGHT)
+
 
 if __name__ == '__main__':
     captcha = Captcha()
     print(captcha.answer)
     print(Captcha.EMOJI_LIST)
-    print(emoji.EMOJI_DATA['👩🏾‍🦳'])
