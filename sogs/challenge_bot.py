@@ -11,16 +11,18 @@ class ChallengeBot(Bot):
             privkey,
             pubkey,
             display_name,
+            refresh_limit = 5,
             retry_timeout=120,
             write_timeout=120,
     ):
         self.refresh_reaction = "\U0001F504"
         self.pending_requests = {}  # map {session_id : {room_token : msg_id } }
         self.retry_jail = {}
+        self.refresh_limit = refresh_limit
         self.retry_timeout = retry_timeout
         self.write_timeout = write_timeout
         self.challenges = {}  # map {session_id : Captcha }
-        self.refresh_record = {}  # map {session_id: [refresh_timestamp]}
+        self.refresh_record = {}  # map {session_id: [refresh_timestamps]}
 
         Bot.__init__(self, sogs_address, sogs_pubkey, privkey, pubkey, display_name)
         self.register_request_read_handler(self.handle_request_read)
@@ -37,14 +39,25 @@ class ChallengeBot(Bot):
         if session_id in self.pending_requests and room_token in self.pending_requests[session_id]:
             return bt_serialize("OK")
         print(f"request_read from {session_id}, id={req[b'user_id']}, room={room_token}")
+        return self.post_challenge(room_token, session_id)
+
+    def post_challenge(self, room_token, session_id):
         self.refresh_capcha_handler(session_id)
-        # TODO: Upload the image
+        file_name = self.challenges[session_id].captcha_image
+        with open(file_name, 'rb') as file:
+            file_contents = file.read()
+        file_id = self.upload_file(
+            file_name=file_name,
+            file_contents=file_contents,
+            room_token=room_token
+        )
         msg_id = self.post_message(
-                    room_token,
-                    f"{self.challenges[session_id].question} You can refresh the picture by reacting \U0001F504.",
-                    whisper_target=session_id,
-                    no_bots=True
-                )
+            room_token,
+            f"{self.challenges[session_id].question} You can refresh the picture by reacting \U0001F504.",
+            file_ids=[file_id],
+            whisper_target=session_id,
+            no_bots=True
+        )
         if msg_id:
             react_resp = self.post_reactions(
                 room_token, msg_id, self.refresh_reaction
@@ -55,7 +68,6 @@ class ChallengeBot(Bot):
             if session_id not in self.pending_requests:
                 self.pending_requests[session_id] = dict()
             self.pending_requests[session_id][room_token] = msg_id
-
         return bt_serialize("OK")
 
     def refresh_capcha_handler(self, session_id):
@@ -81,13 +93,19 @@ class ChallengeBot(Bot):
 
             if reaction == self.refresh_reaction:
                 print(f"{session_id} request refreshing challenge.")
-                self.refresh_capcha_handler(session_id)
-                self.post_message(
-                    room_token,
-                    self.challenges[session_id].question,
-                    whisper_target=session_id,
-                    no_bots=True
-                )
+                if self.refresh_record[session_id] is None:
+                    self.refresh_record[session_id] = []
+                if len(self.refresh_record[session_id]) > self.refresh_limit:
+                    self.post_message(
+                        room_token,
+                        f"Whoa, slow down! You may try again in {self.retry_timeout} seconds with a new prompt.",
+                        whisper_target=session_id,
+                        no_bots=True
+                    )
+                    self.retry_jail[session_id] = time() + self.retry_timeout
+                else:
+                    self.refresh_record[session_id].append(time())
+                    self.post_challenge(room_token, session_id)
             elif reaction == self.challenges[session_id].answer:
                 print(f"Granting permissions to {session_id} for room with token {room_token}")
                 # Grant read permission immediately after receiving the correct reaction

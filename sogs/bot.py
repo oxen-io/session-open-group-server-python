@@ -331,7 +331,7 @@ class Bot:
         """
         self.omq.send(self.conn, "bot.delete_message", bt_serialize({'msg_id': msg_id}))
 
-    def post_message(self, room_token, body, *args, whisper_target=None, no_bots=False):
+    def post_message(self, room_token, body, file_ids=None, *args, whisper_target=None, no_bots=False):
         from sogs import session_pb2 as protobuf
         from time import time
 
@@ -397,6 +397,9 @@ class Bot:
         msg_id = resp[b'msg_id']
         print(f"message injected, id: {msg_id}")
         return msg_id
+
+    def upload_file(self, file_name, file_contents, room_id=None, room_token=None) -> int:
+        pass
 
     def post_reactions(self, room_token, msg_id, *reactions):
         req = {"room_token": room_token, "msg_id": msg_id, "reactions": reactions}

@@ -121,7 +121,7 @@ class Captcha:
         )
 
         # Save the image
-        image.save("shapes_image.png")
+        image.save(self.captcha_image)
 
     def refresh(self):
         self.answer = random.choice(list(Captcha.EMOJI_LIST))
