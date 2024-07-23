@@ -1,7 +1,7 @@
 from concurrent.futures import ThreadPoolExecutor
 from PIL import Image, ImageDraw, ImageFont
+from emoji_list import EMOJI_LIST
 import random
-import emoji
 import time
 import asyncio
 import os
@@ -128,10 +128,9 @@ class Captcha:
 
 class CaptchaManager:
 
-    EMOJI_LIST = {emoji_str for emoji_str, names in emoji.EMOJI_DATA.items() if 'skin_tone' not in str(names['en'])}
     IMAGES_DIR = "async_generated_images"
 
-    def __init__(self, initial_count=1000):
+    def __init__(self, initial_count=5000):
         self.captcha_list = []
         os.makedirs(CaptchaManager.IMAGES_DIR, exist_ok=True)
         start_time = time.time()
@@ -144,17 +143,16 @@ class CaptchaManager:
         tasks = []
         with ThreadPoolExecutor(max_workers=10) as executor:
             for i in range(count):
-                captcha = Captcha(random.choice(list(CaptchaManager.EMOJI_LIST)), f"shapes_image_{i}.png")
+                captcha = Captcha(random.choice(list(EMOJI_LIST)), f"shapes_image_{i}.png")
                 self.captcha_list.append(captcha)
                 tasks.append(captcha.generate_captcha(executor))
             await asyncio.gather(*tasks)
 
     def refresh(self) -> Captcha:
         if len(self.captcha_list) == 0:
-            asyncio.run(self.batch_generate_captcha(100))
+            asyncio.run(self.batch_generate_captcha(200))
         return self.captcha_list.pop()
 
 
 if __name__ == '__main__':
     captcha_manager = CaptchaManager()
-    print(emoji.EMOJI_DATA)
