@@ -1,6 +1,10 @@
+from concurrent.futures import ThreadPoolExecutor
 from PIL import Image, ImageDraw, ImageFont
 import random
 import emoji
+import time
+import asyncio
+import os
 
 
 class Shape:
@@ -74,21 +78,19 @@ class Captcha:
     # Bitmap fonts don't support scaling with freetype, so you must specify a valid size,
     # which is 109 for Noto Color Emoji.
     FONT_SIZE = 109
-    EMOJI_LIST = {emoji_str for emoji_str, names in emoji.EMOJI_DATA.items() if 'skin_tone' not in str(names['en'])}
     WIDTH = 400
     HEIGHT = 200
 
-    def __init__(self):
+    def __init__(self, answer_emoji, file_name):
         self.question = "Please react with the emoji in the picture."
-        self.answer = random.choice(list(Captcha.EMOJI_LIST))
+        self.answer = answer_emoji
         # List of possible shapes
         self.shape_set = ["rectangle", "square", "pentagon", "hexagon", "circle", "triangle", "octagon", "oval"]
         # List of primary colors
         self.color_set = ["red", "green", "blue", "orange", "yellow"]
-        self.captcha_image = "shapes_image.png"
-        self.generate_captcha(width=Captcha.WIDTH, height=Captcha.HEIGHT)
+        self.captcha_image = file_name
 
-    def generate_captcha(self, width, height):
+    async def generate_captcha(self, executor, width=WIDTH, height=HEIGHT):
         # Create a new image with white background
         image = Image.new("RGB", (width, height), "white")
         draw = ImageDraw.Draw(image)
@@ -98,7 +100,6 @@ class Captcha:
         shapes = []
         min_size_x = int(width * 0.1)
         min_size_y = int(height * 0.1)
-        answer = 0
         # Draw 10 shapes randomly on the image
         while len(shapes) < 10:
             shape_type = random.choice(self.shape_set)
@@ -116,19 +117,44 @@ class Captcha:
         draw.text(
             (emoji_x, emoji_y),
             self.answer,
-            font=ImageFont.truetype(Captcha.FONT_PATH, Captcha.FONT_SIZE),
-            fill="black"
+            font=ImageFont.truetype(Captcha.FONT_PATH, Captcha.FONT_SIZE, layout_engine=ImageFont.LAYOUT_RAQM),
+            embedded_color=True
         )
 
         # Save the image
-        image.save(self.captcha_image)
+        image_path = f"async_generated_images/{self.captcha_image}"
+        await asyncio.get_event_loop().run_in_executor(executor, image.save, image_path)
 
-    def refresh(self):
-        self.answer = random.choice(list(Captcha.EMOJI_LIST))
-        self.generate_captcha(width=Captcha.WIDTH, height=Captcha.HEIGHT)
+
+class CaptchaManager:
+
+    EMOJI_LIST = {emoji_str for emoji_str, names in emoji.EMOJI_DATA.items() if 'skin_tone' not in str(names['en'])}
+    IMAGES_DIR = "async_generated_images"
+
+    def __init__(self, initial_count=1000):
+        self.captcha_list = []
+        os.makedirs(CaptchaManager.IMAGES_DIR, exist_ok=True)
+        start_time = time.time()
+        asyncio.run(self.batch_generate_captcha(initial_count))
+        end_time = time.time()
+        execution_time = end_time - start_time
+        print(f"Execution time: {execution_time} seconds")
+
+    async def batch_generate_captcha(self, count):
+        tasks = []
+        with ThreadPoolExecutor(max_workers=10) as executor:
+            for i in range(count):
+                captcha = Captcha(random.choice(list(CaptchaManager.EMOJI_LIST)), f"shapes_image_{i}.png")
+                self.captcha_list.append(captcha)
+                tasks.append(captcha.generate_captcha(executor))
+            await asyncio.gather(*tasks)
+
+    def refresh(self) -> Captcha:
+        if len(self.captcha_list) == 0:
+            asyncio.run(self.batch_generate_captcha(100))
+        return self.captcha_list.pop()
 
 
 if __name__ == '__main__':
-    captcha = Captcha()
-    print(captcha.answer)
-    print(Captcha.EMOJI_LIST)
+    captcha_manager = CaptchaManager()
+    print(emoji.EMOJI_DATA)

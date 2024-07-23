@@ -1,5 +1,5 @@
 from bot import *
-from captcha import Captcha
+from captcha import Captcha, CaptchaManager
 
 
 class ChallengeBot(Bot):
@@ -11,7 +11,7 @@ class ChallengeBot(Bot):
             privkey,
             pubkey,
             display_name,
-            refresh_limit = 5,
+            refresh_limit=5,
             retry_timeout=120,
             write_timeout=120,
     ):
@@ -23,6 +23,7 @@ class ChallengeBot(Bot):
         self.write_timeout = write_timeout
         self.challenges = {}  # map {session_id : Captcha }
         self.refresh_record = {}  # map {session_id: [refresh_timestamps]}
+        self.captcha_manager = CaptchaManager()
 
         Bot.__init__(self, sogs_address, sogs_pubkey, privkey, pubkey, display_name)
         self.register_request_read_handler(self.handle_request_read)
@@ -71,10 +72,7 @@ class ChallengeBot(Bot):
         return bt_serialize("OK")
 
     def refresh_capcha_handler(self, session_id):
-        if self.challenges[session_id] is not None:
-            self.challenges[session_id].refresh()
-        else:
-            self.challenges[session_id] = Captcha()
+        self.challenges[session_id] = self.captcha_manager.refresh()
 
     def reaction_posted(self, m: oxenmq.Message):
         req = bt_deserialize(m.dataview()[0])
