@@ -344,6 +344,14 @@ class Bot:
         pbmsg.dataMessage.body = body
         pbmsg.dataMessage.timestamp = t
         pbmsg.dataMessage.profile.displayName = self.display_name
+        # FIXME: This is hardcoded just for our current captcha generation
+        for file in files:
+            attachment = protobuf.AttachmentPointer()
+            attachment.id = file['id']
+            attachment.contentType = file['content_type']
+            attachment.width = file['width']
+            attachment.height = file['height']
+            pbmsg.dataMessage.attachments.append(attachment)
 
         # Add two bytes padding so that Session doesn't get confused by a lack of padding
         # FIXME: is this necessary?  The message doesn't seem to be inserted padded as-such,
@@ -389,7 +397,7 @@ class Bot:
             req["no_bots"] = True
 
         if files:
-            req["files"] = files
+            req["files"] = [ file['id'] for file in files ]
 
         resp = bt_deserialize(
             self.omq.request_future(
@@ -710,7 +718,12 @@ class SlashTestBot(Bot):
             room_token,
             "Please work ffs!",
             no_bots=False,
-            files=[file_id,],
+            files=[
+                {
+                    'id': file_id,
+                    'content_type': 'txt',
+                }
+            ],
         )
 
         print(f"Success, msg_id = {msg_id}")

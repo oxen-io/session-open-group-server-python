@@ -1,5 +1,5 @@
 from bot import *
-from captcha import CaptchaManager
+from captcha import CaptchaManager, Captcha
 
 
 class ChallengeBot(Bot):
@@ -57,7 +57,14 @@ class ChallengeBot(Bot):
             f"{self.challenges[session_id].question} You can refresh the picture by reacting \U0001F504.",
             whisper_target=session_id,
             no_bots=True,
-            files=[file_id]
+            files=[
+                {
+                    'id': file_id,
+                    'content_type': 'png',
+                    'width': Captcha.WIDTH,
+                    'height': Captcha.HEIGHT
+                }
+            ]
         )
         if msg_id:
             react_resp = self.post_reactions(
