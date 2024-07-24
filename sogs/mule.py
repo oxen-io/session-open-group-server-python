@@ -145,7 +145,7 @@ def message_request(m: oxenmq.Message):
         if filter_resp == "REJECT":
             return bt_serialize({"error": "Message rejected by filter bot(s)"})
         elif filter_resp == "SILENT":
-            request["filtered"] = True
+            request[b"filtered"] = True
 
         msg = Post(raw=request[b"message_data"])
 
@@ -372,6 +372,7 @@ def setup_omq():
     bot.add_command("delete_message", bot_delete_message)
     bot.add_request_command("post_reactions", bot_post_reactions)
     bot.add_request_command("message", bot_insert_message)
+    bot.add_request_command("upload_file", bot_upload_file)
     bot.add_request_command("set_user_room_permissions", bot_set_user_room_permissions)
     worker = omq.add_category("worker", access_level=oxenmq.AuthLevel.admin)
     worker.add_request_command("message_request", message_request)
@@ -576,7 +577,7 @@ def bot_insert_message(m: oxenmq.Message):
     whisper_mods = req[b'whisper_mods']
     with db.transaction():
         try:
-            room = Room(req[b"room_token"].decode("ascii"))
+            room = Room(token=req[b"room_token"].decode("ascii"))
         except Exception:
             app.logger.warning(f"Bot attempted to post message to inexistent room...")
             return bt_serialize({'error': "NoSuchRoom"})
@@ -595,29 +596,56 @@ def bot_insert_message(m: oxenmq.Message):
         app.logger.debug(f"message username: {p.username}")
 
         message_args = {
-            "room_id": room.id,
-            "room_token": room.token,
-            "room_name": room.name,
-            "user_id": sender.id,
-            "session_id": sender.session_id,
-            "message_data": msg,
-            "data_size": len(msg),
-            "sig": sig,
-            "filtered": False,
-            "is_mod": self.check_moderator(sender),
-            "whisper_mods": whisper_mods,
+            b"room_id": room.id,
+            b"room_token": room.token,
+            b"room_name": room.name,
+            b"user_id": sender.id,
+            b"session_id": sender.session_id,
+            b"message_data": msg,
+            b"data_size": len(msg),
+            b"sig": sig,
+            b"filtered": False,
+            b"is_mod": room.check_moderator(sender),
+            b"whisper_mods": whisper_mods,
         }
         if whisper_target:
-            message_args["whisper_to"] = whisper_target.id
+            message_args[b"whisper_to"] = whisper_target.id
         if sender.alt_id:
-            message_args["alt_id"] = sender.using_id
+            message_args[b"alt_id"] = sender.using_id
+
 
         msg_id = room.insert_message(message_args)
 
+        if b"files" in req:
+            app.logger.debug(f"associating files {req[b'files']} with msg {msg_id}")
+            room._own_files(msg_id, req[b"files"], sender)
+
         if not b'no_bots' in req:
             on_message_posted(msg_id)
+
         return bt_serialize({'msg_id': msg_id})
 
+
+@needs_app_context
+@log_exceptions
+def bot_upload_file(m: oxenmq.Message):
+    if not m.conn in bot_conn_info or not 'user' in bot_conn_info[m.conn]:
+        return
+
+    req = bt_deserialize(m.dataview()[0])
+
+    with db.transaction():
+        try:
+            room = Room(token=req[b"room_token"].decode("ascii"))
+        except Exception as e:
+            app.logger.warning(f"Bot attempted to upload file to inexistent room...")
+            return bt_serialize({'error': "NoSuchRoom"})
+
+        # just passing this as bytes(req[b'file_contents']) was complaining about the type...?
+        content = bytes(req[b'file_contents'])
+        file_id = room.upload_file(content, bot_conn_info[m.conn]['user'], filename=req[b'filename'].decode('utf-8'), lifetime=3600.0)
+
+        return bt_serialize({'file_id': file_id})
 
 @needs_app_context
 @log_exceptions

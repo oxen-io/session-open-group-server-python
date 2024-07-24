@@ -331,7 +331,7 @@ class Bot:
         """
         self.omq.send(self.conn, "bot.delete_message", bt_serialize({'msg_id': msg_id}))
 
-    def post_message(self, room_token, body, file_ids=None, *args, whisper_target=None, no_bots=False):
+    def post_message(self, room_token, body, *args, whisper_target=None, no_bots=False, files=None):
         from sogs import session_pb2 as protobuf
         from time import time
 
@@ -356,7 +356,7 @@ class Bot:
         sig = blind15_sign(self.privkey, self.sogs_pubkey, pbmsg)
 
         return self.inject_message(
-            room_token, self.session_id, pbmsg, sig, whisper_target=whisper_target, no_bots=no_bots
+            room_token, self.session_id, pbmsg, sig, whisper_target=whisper_target, no_bots=no_bots, files=files
         )
 
     # This can be used either to post a message from the bot *or* to re-inject a now-approved user message
@@ -372,6 +372,7 @@ class Bot:
         whisper_target=None,
         whisper_mods=False,
         no_bots=False,
+        files=None,
     ):
         req = {
             "room_token": room_token,
@@ -386,6 +387,9 @@ class Bot:
 
         if no_bots:
             req["no_bots"] = True
+
+        if files:
+            req["files"] = files
 
         resp = bt_deserialize(
             self.omq.request_future(
@@ -412,6 +416,24 @@ class Bot:
                 request_timeout=timedelta(seconds=1),
             ).get()[0]
         )
+
+    def upload_file(self, filename, file_contents, room_token) -> int:
+        req = {"filename": filename, "file_contents": file_contents, "room_token": room_token}
+        print(f"upload_file request: {req}")
+
+        resp = bt_deserialize(
+            self.omq.request_future(
+                self.conn,
+                "bot.upload_file",
+                bt_serialize(req),
+                request_timeout=timedelta(seconds=3),
+            ).get()[0]
+        )
+
+        if not b"file_id" in resp:
+            return None
+
+        return resp[b"file_id"]
 
     def message_posted(self, m: oxenmq.Message):
         print(f"message_posted called")
@@ -659,6 +681,7 @@ class SlashTestBot(Bot):
         self.register_post_command('/test', self.handle_post_slash)
         self.register_pre_command('/test_handled', self.handle_pre_slash)
         self.register_post_command('/test_handled', self.handle_post_slash)
+        self.register_pre_command('/get_file', self.handle_get_file)
 
     def handle_pre_slash(self, request, command_parts):
         print(f"slash pre-insertion command: {command_parts}")
@@ -671,6 +694,31 @@ class SlashTestBot(Bot):
         if command_parts[0] == '/test_handled':
             return False
         return True
+
+    def handle_get_file(self, request, command_parts):
+        print(f"/get_file pre-insertion command: {command_parts}")
+
+        room_token = request[b'room_token']
+        print(f"room_token for file upload: {room_token}")
+
+        file_id = self.upload_file("foo.txt", "this is some file contents yay\n", room_token)
+
+        if not file_id:
+            print("file upload failed...")
+            return False
+
+        print(f"file upload success, file_id: {file_id}")
+
+        msg_id = self.post_message(
+            room_token,
+            "Please work ffs!",
+            no_bots=False,
+            files=[file_id,],
+        )
+
+        print(f"Success, msg_id = {msg_id}")
+
+        return False
 
 
 class PermissionBot(Bot):
