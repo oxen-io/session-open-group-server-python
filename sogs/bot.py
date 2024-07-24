@@ -402,9 +402,6 @@ class Bot:
         print(f"message injected, id: {msg_id}")
         return msg_id
 
-    def upload_file(self, file_name, file_contents, room_id=None, room_token=None) -> int:
-        pass
-
     def post_reactions(self, room_token, msg_id, *reactions):
         req = {"room_token": room_token, "msg_id": msg_id, "reactions": reactions}
         print(f"post_reactions request: {req}")

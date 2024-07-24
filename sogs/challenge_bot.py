@@ -1,5 +1,5 @@
 from bot import *
-from captcha import Captcha, CaptchaManager
+from captcha import CaptchaManager
 
 
 class ChallengeBot(Bot):
@@ -16,14 +16,14 @@ class ChallengeBot(Bot):
             write_timeout=120,
     ):
         self.refresh_reaction = "\U0001F504"
-        self.pending_requests = {}  # map {session_id : {room_token : msg_id } }
+        self.pending_requests = {}  # map {session_id : {room_token : msg_id}}
         self.retry_jail = {}
         self.refresh_limit = refresh_limit
         self.retry_timeout = retry_timeout
         self.write_timeout = write_timeout
-        self.challenges = {}  # map {session_id : Captcha }
+        self.challenges = {}  # map {session_id : Captcha}
         self.refresh_record = {}  # map {session_id: [refresh_timestamps]}
-        self.captcha_manager = CaptchaManager()
+        self.captcha_manager = CaptchaManager(initial_count=2000)
 
         Bot.__init__(self, sogs_address, sogs_pubkey, privkey, pubkey, display_name)
         self.register_request_read_handler(self.handle_request_read)
@@ -48,16 +48,16 @@ class ChallengeBot(Bot):
         with open(file_name, 'rb') as file:
             file_contents = file.read()
         file_id = self.upload_file(
-            file_name=file_name,
+            filename=file_name,
             file_contents=file_contents,
             room_token=room_token
         )
         msg_id = self.post_message(
             room_token,
             f"{self.challenges[session_id].question} You can refresh the picture by reacting \U0001F504.",
-            file_ids=[file_id],
             whisper_target=session_id,
-            no_bots=True
+            no_bots=True,
+            files=[file_id]
         )
         if msg_id:
             react_resp = self.post_reactions(
@@ -134,3 +134,23 @@ class ChallengeBot(Bot):
             del self.pending_requests[session_id][room_token]
             if len(self.pending_requests[session_id]) == 0:
                 del self.pending_requests[session_id]
+
+
+if __name__ == '__main__':
+    server_key_hex = b'0bac1f7b4ec1fbe61f89d6ef95504859622eba175ffe3c50050a94b14f755359'
+    bot_privkey_hex = b'489327e8db1e9f6e05c4ad4d75b8bef6aeb8ad78ae6b3d4a74b96455b7438e79'
+
+    from nacl.public import PublicKey
+
+    server_key = PublicKey(HexEncoder.decode(server_key_hex))
+    server_key_bytes = server_key.encode()
+
+    privkey = SigningKey(HexEncoder.decode(bot_privkey_hex))
+    print(f"privkey: {privkey.encode(HexEncoder)}")
+    privkey_bytes = privkey.encode()
+    pubkey_bytes = privkey.verify_key.encode()
+    print(f"pubkey: {privkey.verify_key.encode(HexEncoder)}")
+    bot = ChallengeBot(
+        "tcp://127.0.0.1:43210", server_key_bytes, privkey_bytes, pubkey_bytes, "Challenge Bot"
+    )
+    bot.run()

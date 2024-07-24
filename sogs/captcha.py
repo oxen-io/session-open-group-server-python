@@ -117,7 +117,7 @@ class Captcha:
         draw.text(
             (emoji_x, emoji_y),
             self.answer,
-            font=ImageFont.truetype(Captcha.FONT_PATH, Captcha.FONT_SIZE, layout_engine=ImageFont.LAYOUT_RAQM),
+            font=ImageFont.truetype(Captcha.FONT_PATH, Captcha.FONT_SIZE, layout_engine=ImageFont.Layout.RAQM),
             embedded_color=True
         )
 
@@ -130,7 +130,7 @@ class CaptchaManager:
 
     IMAGES_DIR = "async_generated_images"
 
-    def __init__(self, initial_count=5000):
+    def __init__(self, initial_count=2000):
         self.captcha_list = []
         os.makedirs(CaptchaManager.IMAGES_DIR, exist_ok=True)
         start_time = time.time()
