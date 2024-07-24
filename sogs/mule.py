@@ -33,6 +33,13 @@ bot_pre_commands = {}
 bot_post_commands = {}
 
 
+# not changing the keys, since this is just for fixing the values if they
+# need to be str and not bytes
+def bytestring_fixup(d, keys):
+    for k in keys:
+        if k in d:
+            d[k] = d[k].decode('utf-8')
+
 def log_exceptions(f):
     @functools.wraps(f)
     def wrapper(*args, **kwargs):
@@ -140,6 +147,7 @@ def message_request(m: oxenmq.Message):
     try:
         command = ""
         request = bt_deserialize(m.dataview()[0])
+        bytestring_fixup(request, b"alt_id")
 
         filter_resp = bot_filter_message(m.data(), request)
         if filter_resp == "REJECT":
