@@ -653,7 +653,8 @@ def bot_upload_file(m: oxenmq.Message):
         content = bytes(req[b'file_contents'])
         file_id = room.upload_file(content, bot_conn_info[m.conn]['user'], filename=req[b'filename'].decode('utf-8'), lifetime=3600.0)
 
-        return bt_serialize({'file_id': file_id})
+        url = f"{config.URL_BASE}/{room.token}/file/{file_id}"
+        return bt_serialize({'file_id': file_id, "url": url})
 
 @needs_app_context
 @log_exceptions

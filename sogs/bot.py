@@ -353,6 +353,16 @@ class Bot:
             attachment.height = file['height']
             pbmsg.dataMessage.attachments.append(attachment)
 
+        file_ids = None
+        if files:
+            file_ids = []
+            for metadata in files:
+                file_ids.append(metadata["id"])
+                attachment = pbmsg.dataMessage.attachments.add()
+                for key in metadata:
+                    old = getattr(attachment, key) # should raise exception if not present
+                    setattr(attachment, key, metadata[key])
+
         # Add two bytes padding so that Session doesn't get confused by a lack of padding
         # FIXME: is this necessary?  The message doesn't seem to be inserted padded as-such,
         #        nor sent directly as a reply.  Does Session expect this padding for the signature?
@@ -364,7 +374,7 @@ class Bot:
         sig = blind15_sign(self.privkey, self.sogs_pubkey, pbmsg)
 
         return self.inject_message(
-            room_token, self.session_id, pbmsg, sig, whisper_target=whisper_target, no_bots=no_bots, files=files
+            room_token, self.session_id, pbmsg, sig, whisper_target=whisper_target, no_bots=no_bots, files=file_ids
         )
 
     # This can be used either to post a message from the bot *or* to re-inject a now-approved user message
@@ -422,23 +432,51 @@ class Bot:
             ).get()[0]
         )
 
-    def upload_file(self, filename, file_contents, room_token) -> int:
-        req = {"filename": filename, "file_contents": file_contents, "room_token": room_token}
-        print(f"upload_file request: {req}")
+    def upload_file(self, file_path, room_token, display_filename=None):
+        try:
+            from os import path
+            filename = display_filename if display_filename else path.basename(file_path)
 
-        resp = bt_deserialize(
-            self.omq.request_future(
-                self.conn,
-                "bot.upload_file",
-                bt_serialize(req),
-                request_timeout=timedelta(seconds=3),
-            ).get()[0]
-        )
 
-        if not b"file_id" in resp:
+            from pathlib import Path
+            file_contents = Path(file_path).read_bytes()
+
+            req = {"filename": filename, "file_contents": file_contents, "room_token": room_token}
+
+            resp = bt_deserialize(
+                self.omq.request_future(
+                    self.conn,
+                    "bot.upload_file",
+                    bt_serialize(req),
+                    request_timeout=timedelta(seconds=3),
+                ).get()[0]
+            )
+
+            if not (b"file_id" in resp and b"url" in resp):
+                print(f"file_id or url missing from sogs response to upload_file")
+                return None
+
+            metadata = {}
+            metadata["fileName"] = filename
+            metadata["id"] = resp[b"file_id"]
+            metadata["url"] = resp[b"url"].decode("utf-8")
+            metadata["size"] = len(file_contents)
+
+            import magic
+            mime = magic.from_file(file_path, mime=True)
+            metadata["contentType"] = mime
+            if mime.startswith("image"):
+                from exif import Image
+                img = Image(file_contents)
+                if img.has_exif:
+                    metadata["width"] = img.pixel_x_dimension
+                    metadata["height"] = img.pixel_y_dimension
+
+            return metadata
+
+        except Exception as e:
+            print(f"upload_file exception: {e}")
             return None
-
-        return resp[b"file_id"]
 
     def message_posted(self, m: oxenmq.Message):
         print(f"message_posted called")
@@ -706,24 +744,28 @@ class SlashTestBot(Bot):
         room_token = request[b'room_token']
         print(f"room_token for file upload: {room_token}")
 
-        file_id = self.upload_file("foo.txt", "this is some file contents yay\n", room_token)
+        file_meta = self.upload_file("test.jpg", room_token)
 
-        if not file_id:
+        if not file_meta:
             print("file upload failed...")
             return False
 
-        print(f"file upload success, file_id: {file_id}")
+        print(f"file upload success, file_meta: {file_meta}")
 
         msg_id = self.post_message(
             room_token,
             "Please work ffs!",
             no_bots=False,
+<<<<<<< HEAD
             files=[
                 {
                     'id': file_id,
                     'content_type': 'txt',
                 }
             ],
+=======
+            files=[file_meta,],
+>>>>>>> 6749902436369f779723e595db4a0124b6ad4281
         )
 
         print(f"Success, msg_id = {msg_id}")
