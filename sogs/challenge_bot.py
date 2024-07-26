@@ -1,5 +1,8 @@
 from bot import *
-from captcha import CaptchaManager, Captcha
+from captcha import CaptchaManager
+import config
+import os
+from nacl.public import PrivateKey
 
 
 class ChallengeBot(Bot):
@@ -44,27 +47,14 @@ class ChallengeBot(Bot):
 
     def post_challenge(self, room_token, session_id):
         self.refresh_capcha_handler(session_id)
-        file_name = self.challenges[session_id].captcha_image
-        with open(file_name, 'rb') as file:
-            file_contents = file.read()
-        file_id = self.upload_file(
-            filename=file_name,
-            file_contents=file_contents,
-            room_token=room_token
-        )
+        file_path = self.challenges[session_id].captcha_image
+        file_meta = self.upload_file(file_path, room_token)
         msg_id = self.post_message(
             room_token,
             f"{self.challenges[session_id].question} You can refresh the picture by reacting \U0001F504.",
             whisper_target=session_id,
             no_bots=True,
-            files=[
-                {
-                    'id': file_id,
-                    'content_type': 'png',
-                    'width': Captcha.WIDTH,
-                    'height': Captcha.HEIGHT
-                }
-            ]
+            files=[file_meta]
         )
         if msg_id:
             react_resp = self.post_reactions(
@@ -144,7 +134,8 @@ class ChallengeBot(Bot):
 
 
 if __name__ == '__main__':
-    server_key_hex = b'0bac1f7b4ec1fbe61f89d6ef95504859622eba175ffe3c50050a94b14f755359'
+
+    server_key_hex = b'ef5b3bd118ffd0abcb48731b6eb8a9037ee4ed7442f4599088b55bad9d8a480a'
     bot_privkey_hex = b'489327e8db1e9f6e05c4ad4d75b8bef6aeb8ad78ae6b3d4a74b96455b7438e79'
 
     from nacl.public import PublicKey

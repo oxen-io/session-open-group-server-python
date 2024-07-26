@@ -344,14 +344,6 @@ class Bot:
         pbmsg.dataMessage.body = body
         pbmsg.dataMessage.timestamp = t
         pbmsg.dataMessage.profile.displayName = self.display_name
-        # FIXME: This is hardcoded just for our current captcha generation
-        for file in files:
-            attachment = protobuf.AttachmentPointer()
-            attachment.id = file['id']
-            attachment.contentType = file['content_type']
-            attachment.width = file['width']
-            attachment.height = file['height']
-            pbmsg.dataMessage.attachments.append(attachment)
 
         file_ids = None
         if files:
@@ -756,16 +748,7 @@ class SlashTestBot(Bot):
             room_token,
             "Please work ffs!",
             no_bots=False,
-<<<<<<< HEAD
-            files=[
-                {
-                    'id': file_id,
-                    'content_type': 'txt',
-                }
-            ],
-=======
             files=[file_meta,],
->>>>>>> 6749902436369f779723e595db4a0124b6ad4281
         )
 
         print(f"Success, msg_id = {msg_id}")
@@ -878,7 +861,7 @@ if __name__ == '__main__':
     that someone did something really dumb.
     """
     # server_key_hex = b"3689294e4e49dac8842746ae7011477610e846f30a4f30bedac684fb20f28f65"
-    server_key_hex = b'0bac1f7b4ec1fbe61f89d6ef95504859622eba175ffe3c50050a94b14f755359'
+    server_key_hex = b'ef5b3bd118ffd0abcb48731b6eb8a9037ee4ed7442f4599088b55bad9d8a480a'
     bot_privkey_hex = b'489327e8db1e9f6e05c4ad4d75b8bef6aeb8ad78ae6b3d4a74b96455b7438e79'
 
     from nacl.public import PublicKey

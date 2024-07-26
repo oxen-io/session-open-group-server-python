@@ -156,3 +156,6 @@ class CaptchaManager:
 
 if __name__ == '__main__':
     captcha_manager = CaptchaManager()
+
+    from nacl.public import PrivateKey
+    print(PrivateKey.generate())
