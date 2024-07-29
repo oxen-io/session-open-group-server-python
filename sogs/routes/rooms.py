@@ -835,7 +835,7 @@ def upload_file(room):
 
 
 @rooms.get("/room/<Room:room>/file/<int:fileId>")
-@auth.read_required
+@auth.accessible_required
 def serve_file(room, fileId):
     """
     Retrieves a file uploaded to the room.
