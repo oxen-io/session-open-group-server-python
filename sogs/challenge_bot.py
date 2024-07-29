@@ -1,9 +1,5 @@
 from bot import *
 from captcha import CaptchaManager
-import config
-import os
-from nacl.public import PrivateKey
-
 
 class ChallengeBot(Bot):
 
@@ -46,26 +42,32 @@ class ChallengeBot(Bot):
         return self.post_challenge(room_token, session_id)
 
     def post_challenge(self, room_token, session_id):
-        self.refresh_capcha_handler(session_id)
-        file_path = self.challenges[session_id].captcha_image
-        file_meta = self.upload_file(file_path, room_token)
-        msg_id = self.post_message(
-            room_token,
-            f"{self.challenges[session_id].question} You can refresh the picture by reacting \U0001F504.",
-            whisper_target=session_id,
-            no_bots=True,
-            files=[file_meta]
-        )
-        if msg_id:
-            react_resp = self.post_reactions(
-                room_token, msg_id, self.refresh_reaction
+        try:
+            self.refresh_capcha_handler(session_id)
+            file_path = self.challenges[session_id].file_name
+            file_meta = self.upload_file(file_path, room_token)
+            msg_id = self.post_message(
+                room_token,
+                f"{self.challenges[session_id].question} You can refresh the picture by reacting \U0001F504.",
+                whisper_target=session_id,
+                no_bots=True,
+                files=[file_meta,]
             )
-            if b'error' in react_resp:
-                print(f"Error adding reactions to whisper: {react_resp[b'error']}")
-                return bt_serialize("ERROR")
-            if session_id not in self.pending_requests:
-                self.pending_requests[session_id] = dict()
-            self.pending_requests[session_id][room_token] = msg_id
+            print(f'Message id: {msg_id}')
+            if msg_id:
+                react_resp = self.post_reactions(
+                    room_token, msg_id, self.refresh_reaction
+                )
+                print(f'React response: {react_resp}')
+                if b'error' in react_resp:
+                    print(f"Error adding reactions to whisper: {react_resp[b'error']}")
+                    return bt_serialize("ERROR")
+                if session_id not in self.pending_requests:
+                    self.pending_requests[session_id] = dict()
+                self.pending_requests[session_id][room_token] = msg_id
+        except:
+            import traceback
+            print(traceback.format_exc())
         return bt_serialize("OK")
 
     def refresh_capcha_handler(self, session_id):
@@ -88,7 +90,7 @@ class ChallengeBot(Bot):
 
             if reaction == self.refresh_reaction:
                 print(f"{session_id} request refreshing challenge.")
-                if self.refresh_record[session_id] is None:
+                if session_id not in self.refresh_record:
                     self.refresh_record[session_id] = []
                 if len(self.refresh_record[session_id]) > self.refresh_limit:
                     self.post_message(
@@ -135,7 +137,7 @@ class ChallengeBot(Bot):
 
 if __name__ == '__main__':
 
-    server_key_hex = b'ef5b3bd118ffd0abcb48731b6eb8a9037ee4ed7442f4599088b55bad9d8a480a'
+    server_key_hex = b'cc9259d48bc590c6d7c53305474e9979e50727f977926eb0094f3849df9ae94a'
     bot_privkey_hex = b'489327e8db1e9f6e05c4ad4d75b8bef6aeb8ad78ae6b3d4a74b96455b7438e79'
 
     from nacl.public import PublicKey
@@ -149,6 +151,6 @@ if __name__ == '__main__':
     pubkey_bytes = privkey.verify_key.encode()
     print(f"pubkey: {privkey.verify_key.encode(HexEncoder)}")
     bot = ChallengeBot(
-        "tcp://127.0.0.1:43210", server_key_bytes, privkey_bytes, pubkey_bytes, "Challenge Bot"
+        "tcp://15.235.143.63:43210", server_key_bytes, privkey_bytes, pubkey_bytes, "Challenge Bot"
     )
     bot.run()

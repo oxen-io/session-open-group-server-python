@@ -86,7 +86,7 @@ class Bot:
                     self.conn,
                     "bot.hello",
                     bt_serialize(self.session_id),
-                    request_timeout=timedelta(seconds=1),
+                    request_timeout=timedelta(seconds=10),
                 ).get()[0]
             )
             if resp == b'OK':
@@ -345,14 +345,13 @@ class Bot:
         pbmsg.dataMessage.timestamp = t
         pbmsg.dataMessage.profile.displayName = self.display_name
 
-        file_ids = None
         if files:
             file_ids = []
             for metadata in files:
                 file_ids.append(metadata["id"])
                 attachment = pbmsg.dataMessage.attachments.add()
                 for key in metadata:
-                    old = getattr(attachment, key) # should raise exception if not present
+                    old = getattr(attachment, key)  # should raise exception if not present
                     setattr(attachment, key, metadata[key])
 
         # Add two bytes padding so that Session doesn't get confused by a lack of padding
@@ -366,7 +365,7 @@ class Bot:
         sig = blind15_sign(self.privkey, self.sogs_pubkey, pbmsg)
 
         return self.inject_message(
-            room_token, self.session_id, pbmsg, sig, whisper_target=whisper_target, no_bots=no_bots, files=file_ids
+            room_token, self.session_id, pbmsg, sig, whisper_target=whisper_target, no_bots=no_bots, files=files
         )
 
     # This can be used either to post a message from the bot *or* to re-inject a now-approved user message
@@ -429,7 +428,6 @@ class Bot:
             from os import path
             filename = display_filename if display_filename else path.basename(file_path)
 
-
             from pathlib import Path
             file_contents = Path(file_path).read_bytes()
 
@@ -448,11 +446,12 @@ class Bot:
                 print(f"file_id or url missing from sogs response to upload_file")
                 return None
 
-            metadata = {}
-            metadata["fileName"] = filename
-            metadata["id"] = resp[b"file_id"]
-            metadata["url"] = resp[b"url"].decode("utf-8")
-            metadata["size"] = len(file_contents)
+            metadata = {
+                "fileName": filename,
+                "id": resp[b"file_id"],
+                "url": resp[b"url"].decode("utf-8"),
+                "size": len(file_contents)
+            }
 
             import magic
             mime = magic.from_file(file_path, mime=True)

@@ -611,6 +611,8 @@ elif args.add_bot:
             key=bot_key.encode(),
         )
 
+    print(f"Bot({args.add_bot}) has been added.")
+
 else:
     print("Error: no action given", file=sys.stderr)
     ap.print_usage()
