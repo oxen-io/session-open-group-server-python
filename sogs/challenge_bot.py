@@ -1,5 +1,12 @@
 from bot import *
 from captcha import CaptchaManager
+import os
+import logging
+import configparser
+
+
+logger = logging.getLogger("config")
+
 
 class ChallengeBot(Bot):
 
@@ -26,6 +33,62 @@ class ChallengeBot(Bot):
 
         Bot.__init__(self, sogs_address, sogs_pubkey, privkey, pubkey, display_name)
         self.register_request_read_handler(self.handle_request_read)
+
+    @staticmethod
+    def create_and_run(db=None, ini: str = "bot.ini"):
+        conf_ini = ini
+        if not os.path.exists(conf_ini):
+            logger.warning("bot.ini does not exist")
+            conf_ini = None
+
+        if not conf_ini:
+            return
+
+        logger.info(f"Loading bot config from {conf_ini}")
+        cp = configparser.ConfigParser()
+        cp.read(conf_ini)
+
+        bot_name = cp.get('bot', 'name')
+        bot_privkey_hex_str = cp.get('bot', 'privkey_hex')
+        sogs_key_hex_str = cp.get('sogs', 'sogs_pubkey_hex')
+        sogs_address = cp.get('sogs', 'sogs_address')
+
+        if not bot_privkey_hex_str:
+            logger.warning("bot private key hex missing")
+            return
+
+        if not sogs_key_hex_str:
+            logger.warning("sogs public key hex missing")
+            return
+
+        from nacl.public import PublicKey
+
+        sogs_key = PublicKey(HexEncoder.decode(str.encode(sogs_key_hex_str)))
+        sogs_key_bytes = sogs_key.encode()
+
+        privkey = SigningKey(HexEncoder.decode(str.encode(bot_privkey_hex_str)))
+        print(f"privkey: {privkey.encode(HexEncoder)}")
+        privkey_bytes = privkey.encode()
+        pubkey_bytes = privkey.verify_key.encode()
+        print(f"pubkey: {privkey.verify_key.encode(HexEncoder)}")
+        bot = ChallengeBot(
+            sogs_address or "tcp://*:22028", sogs_key_bytes, privkey_bytes, pubkey_bytes, bot_name or "Challenge Bot"
+        )
+
+        bot_key = SigningKey(bot.x_pub)
+
+        from .db import query
+
+        if db is not None:
+            with db.transaction():
+                query(
+                    "INSERT INTO bots (auth_key, global, approver, subscribe) VALUES (:key, 1, 1, 1)",
+                    key=bot_key.encode(),
+                )
+
+            print(f"Bot({bot.x_pub.hex()}) has been added.")
+
+        bot.run()
 
     def handle_request_read(self, req):
         room_token = req[b'room_token']
@@ -136,21 +199,4 @@ class ChallengeBot(Bot):
 
 
 if __name__ == '__main__':
-
-    server_key_hex = b'cc9259d48bc590c6d7c53305474e9979e50727f977926eb0094f3849df9ae94a'
-    bot_privkey_hex = b'489327e8db1e9f6e05c4ad4d75b8bef6aeb8ad78ae6b3d4a74b96455b7438e79'
-
-    from nacl.public import PublicKey
-
-    server_key = PublicKey(HexEncoder.decode(server_key_hex))
-    server_key_bytes = server_key.encode()
-
-    privkey = SigningKey(HexEncoder.decode(bot_privkey_hex))
-    print(f"privkey: {privkey.encode(HexEncoder)}")
-    privkey_bytes = privkey.encode()
-    pubkey_bytes = privkey.verify_key.encode()
-    print(f"pubkey: {privkey.verify_key.encode(HexEncoder)}")
-    bot = ChallengeBot(
-        "tcp://15.235.143.63:43210", server_key_bytes, privkey_bytes, pubkey_bytes, "Challenge Bot"
-    )
-    bot.run()
+    ChallengeBot.create_and_run()

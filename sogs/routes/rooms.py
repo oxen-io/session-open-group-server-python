@@ -912,7 +912,7 @@ def serve_file(room, fileId):
 
 
 @rooms.get("/room/<Room:room>/file/<int:fileId>/<filename>")
-@auth.read_required
+@auth.accessible_required
 def serve_file_with_ignored_filename(room, fileId, filename):
     """
     Convenience endpoint for downloading file with a filename appended to the URL.

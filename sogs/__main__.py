@@ -599,19 +599,23 @@ elif args.list_global_mods:
 
 elif args.add_bot:
 
-    from nacl.signing import SigningKey
-    from nacl.encoding import HexEncoder
+    from sogs.challenge_bot import ChallengeBot
 
-    bot_key = SigningKey(HexEncoder.decode(args.add_bot))
-    from .db import query
+    ChallengeBot.create_and_run(db, args.add_bot or 'bot.ini')
 
-    with db.transaction():
-        query(
-            "INSERT INTO bots (auth_key, global, approver, subscribe) VALUES (:key, 1, 1, 1)",
-            key=bot_key.encode(),
-        )
-
-    print(f"Bot({args.add_bot}) has been added.")
+    # from nacl.signing import SigningKey
+    # from nacl.encoding import HexEncoder
+    #
+    # bot_key = SigningKey(HexEncoder.decode(args.add_bot))
+    # from .db import query
+    #
+    # with db.transaction():
+    #     query(
+    #         "INSERT INTO bots (auth_key, global, approver, subscribe) VALUES (:key, 1, 1, 1)",
+    #         key=bot_key.encode(),
+    #     )
+    #
+    # print(f"Bot({args.add_bot}) has been added.")
 
 else:
     print("Error: no action given", file=sys.stderr)
