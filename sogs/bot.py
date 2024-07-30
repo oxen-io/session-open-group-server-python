@@ -6,7 +6,7 @@ import nacl.bindings as sodium
 from datetime import timedelta
 from time import time
 from sogs.model.post import Post
-from captcha import CaptchaManager
+from sogs.captcha import CaptchaManager
 import os
 import logging
 import configparser

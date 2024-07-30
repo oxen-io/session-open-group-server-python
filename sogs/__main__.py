@@ -249,6 +249,7 @@ from . import web
 from .model.room import Room, get_rooms
 from .model.user import User, SystemUser, get_all_global_moderators
 from .model.exc import AlreadyExists, NoSuchRoom, NoSuchUser
+from sogs.bot import ChallengeBot
 
 web.appdb = db.get_conn()
 
@@ -598,8 +599,6 @@ elif args.list_global_mods:
         print(f"- {u.session_id} (hidden moderator)")
 
 elif args.add_bot:
-
-    from bot import ChallengeBot
 
     ChallengeBot.create_and_run(db, args.add_bot or 'bot.ini')
 

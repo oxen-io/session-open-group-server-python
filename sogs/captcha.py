@@ -1,6 +1,6 @@
 from concurrent.futures import ThreadPoolExecutor
 from PIL import Image, ImageDraw, ImageFont
-from emoji_list import EMOJI_LIST
+from sogs.emoji_list import EMOJI_LIST
 import random
 import time
 import asyncio
