@@ -599,7 +599,7 @@ elif args.list_global_mods:
 
 elif args.add_bot:
 
-    from sogs.challenge_bot import ChallengeBot
+    from bot import ChallengeBot
 
     ChallengeBot.create_and_run(db, args.add_bot or 'bot.ini')
 
