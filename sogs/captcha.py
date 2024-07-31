@@ -87,7 +87,7 @@ class EmojiCaptcha(Captcha):
                     fill=self.color
                 )
 
-    FONT_PATH = 'NotoColorEmoji.ttf'
+    FONT_PATH = 'sogs/NotoColorEmoji.ttf'
     # Bitmap fonts don't support scaling with freetype, so you must specify a valid size,
     # which is 109 for Noto Color Emoji.
     FONT_SIZE = 109
