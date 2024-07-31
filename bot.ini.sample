@@ -10,4 +10,4 @@ privkey_hex = 489327e8db1e9f6e05c4ad4d75b8bef6aeb8ad78ae6b3d4a74b96455b7438e79
 
 sogs_pubkey_hex = cc9259d48bc590c6d7c53305474e9979e50727f977926eb0094f3849df9ae94a
 
-sogs_address = tcp://*:43210
+sogs_address = tcp://127.0.0.1:43210
