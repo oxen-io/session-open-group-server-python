@@ -794,6 +794,7 @@ class Room:
                     msg['reactions'] = reacts.get(msg['id'], {})
 
         for msg in msgs:
+            app.logger.warning(f"msg with session id as {msg['session_id']}")
             if isinstance(msg["session_id"], bytes):
                 app.logger.warning(f"msg with id {msg['id']} gave signing_id as bytes not str")
 
