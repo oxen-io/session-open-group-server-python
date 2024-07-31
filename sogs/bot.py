@@ -1011,7 +1011,7 @@ class ChallengeBot(Bot):
                 print(f"{session_id} request refreshing challenge.")
                 if session_id not in self.refresh_record:
                     self.refresh_record[session_id] = []
-                if len(self.refresh_record[session_id]) > self.refresh_limit:
+                if len(self.refresh_record[session_id]) >= self.refresh_limit:
                     self.post_message(
                         room_token,
                         f"Whoa, slow down! You may try again in {self.retry_timeout} seconds with a new prompt.",
