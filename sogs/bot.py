@@ -10,6 +10,7 @@ from sogs.captcha import CaptchaManager
 import os
 import logging
 import configparser
+import sqlalchemy.exc
 
 
 logger = logging.getLogger("config")
@@ -932,13 +933,16 @@ class ChallengeBot(Bot):
         from .db import query
 
         if db is not None:
-            with db.transaction():
-                query(
-                    "INSERT INTO bots (auth_key, global, approver, subscribe) VALUES (:key, 1, 1, 1)",
-                    key=bot_key.encode(),
-                )
+            try:
+                with db.transaction():
+                    query(
+                        "INSERT INTO bots (auth_key, global, approver, subscribe) VALUES (:key, 1, 1, 1)",
+                        key=bot_key.encode(),
+                    )
 
-            print(f"Bot({bot.x_pub.hex()}) has been added.")
+                print(f"Bot({bot.x_pub.hex()}) has been added.")
+            except sqlalchemy.exc.IntegrityError:
+                print(f"Bot({bot.x_pub.hex()}) is already added.")
 
         bot.run()
 
