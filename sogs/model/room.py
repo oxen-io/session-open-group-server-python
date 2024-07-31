@@ -793,6 +793,10 @@ class Room:
                 if 'data' not in msg or msg['data'] is not None:
                     msg['reactions'] = reacts.get(msg['id'], {})
 
+        for msg in msgs:
+            if isinstance(msg["session_id"], bytes):
+                app.logger.warning(f"msg with id {msg['id']} gave signing_id as bytes not str")
+
         return msgs
 
     def filtering(self):
@@ -2035,11 +2039,20 @@ class Room:
                 upload=upload,
             )
 
-    def get_file(self, file_id: int):
-        """Retrieves a file uploaded to this room by id.  Returns None if not found."""
-        row = query("SELECT * FROM files WHERE room = :r AND id = :f", r=self.id, f=file_id).first()
+    def get_file(self, file_id: int, user: User):
+        """Retrieves a file uploaded to this room by id.  Returns None if not found.
+           If the user has only "access" permission for the room (not "read"), make sure
+           the file is attached to a message whispered at that user.
+        """
+        user_whisper_clause = ""
+        access_only = False
+        if not self.check_read(user):
+            access_only = True
+            user_whisper_clause = f" AND EXISTS (SELECT id from messages where id = files.message and whisper = {user.id}"
 
-        if not row and db.HAVE_FILE_ID_HACKS:
+        row = query("SELECT * FROM files WHERE room = :r AND id = :f :u", r=self.id, f=file_id, u=user_whisper_clause).first()
+
+        if not row and db.HAVE_FILE_ID_HACKS and db.HAVE_FILE_ID_HACKS:
             row = query(
                 """
                 SELECT * FROM files WHERE id = (
