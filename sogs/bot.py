@@ -886,7 +886,7 @@ class ChallengeBot(Bot):
         self.challenges = {}  # map {session_id : Captcha}
         self.refresh_record = {}  # map {session_id: [refresh_timestamps]}
         self.retry_record = {}  # map {session_id: Int}
-        self.captcha_manager = CaptchaManager(initial_count=2000)
+        self.captcha_manager = CaptchaManager(initial_count=200)
 
         Bot.__init__(self, sogs_address, sogs_pubkey, privkey, pubkey, display_name)
         self.register_request_read_handler(self.handle_request_read)
