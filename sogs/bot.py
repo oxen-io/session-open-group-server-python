@@ -1029,10 +1029,16 @@ class ChallengeBot(Bot):
                 else:
                     self.refresh_record[session_id].append(time())
                     self.post_challenge(room_token, session_id)
-                    self.delete_message(msg_id)
+                    # self.delete_message(msg_id)
                     return
             elif reaction == self.challenges[session_id].answer:
                 print(f"Granting permissions to {session_id} for room with token {room_token}")
+                self.post_message(
+                    room_token,
+                    f"Congrats! You can read now. You will be able to write in {self.write_timeout} seconds.",
+                    whisper_target=session_id,
+                    no_bots=True,
+                )
                 # Grant read permission immediately after receiving the correct reaction
                 self.set_user_room_permissions(
                     room_token=room_token, user_session_id=session_id, sec_from_now=None, read=True
@@ -1040,12 +1046,6 @@ class ChallengeBot(Bot):
                 # Grant write permission after {self.write_timeout} time
                 self.set_user_room_permissions(
                     room_token=room_token, user_session_id=session_id, sec_from_now=self.write_timeout, write=True
-                )
-                self.post_message(
-                    room_token,
-                    f"Congrats! You can read now. You will be able to write in {self.write_timeout} seconds.",
-                    whisper_target=session_id,
-                    no_bots=True,
                 )
             else:
                 print(f"Wrong answer! Can't grant permission to {session_id}")
@@ -1068,7 +1068,7 @@ class ChallengeBot(Bot):
                 )
                 self.retry_jail[session_id] = time() + self.retry_timeout
 
-            self.delete_message(msg_id)
+            # self.delete_message(msg_id)
             del self.pending_requests[session_id][room_token]
             if len(self.pending_requests[session_id]) == 0:
                 del self.pending_requests[session_id]
