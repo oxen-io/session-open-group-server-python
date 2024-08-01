@@ -240,8 +240,6 @@ def handle_http_auth():
         request.headers.get(f"X-SOGS-{h}") for h in ('Pubkey', 'Nonce', 'Timestamp', 'Signature')
     )
 
-    app.logger.warning(f"http_auth, request: {request.path}, {request.method}, {request.endpoint} {pk}, {nonce}, {sig_in}, {ts_str}")
-
     missing = sum(x is None or x == '' for x in (pk, nonce, ts_str, sig_in))
     # If all are missing then we have no user
     if missing == 4:
@@ -368,4 +366,3 @@ def handle_http_auth():
 
     user.touch()
     g.user = user
-    app.logger.warning(f"http_auth user {g.user.session_id} {g.user.alt_id}")

@@ -795,10 +795,6 @@ class Room:
                 if 'data' not in msg or msg['data'] is not None:
                     msg['reactions'] = reacts.get(msg['id'], {})
 
-        for msg in msgs:
-            if isinstance(msg["session_id"], bytes):
-                app.logger.warning(f"msg with id {msg['id']} gave signing_id as bytes not str")
-
         return msgs
 
     def filtering(self):
