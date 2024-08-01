@@ -2050,9 +2050,9 @@ class Room:
         """
         user_whisper_clause = ""
         access_only = False
-        if not self.check_read(user):
+        if not self.check_read(user) and user is not None:
             access_only = True
-            user_whisper_clause = f" AND EXISTS (SELECT id from messages where id = files.message and whisper = {user.id}"
+            user_whisper_clause = f" AND EXISTS (SELECT id from messages where id = files.message and whisper = {user.id})"
 
         row = query("SELECT * FROM files WHERE room = :r AND id = :f" + user_whisper_clause, r=self.id, f=file_id).first()
 
