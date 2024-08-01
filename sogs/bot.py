@@ -1055,7 +1055,7 @@ class ChallengeBot(Bot):
 
                 self.retry_record[session_id] += 1
                 retry_times_left = self.retry_limit - self.retry_record[session_id]
-                remaining = f"{retry_times_left} " + "attempt" + "s" if retry_times_left > 1 else ""
+                remaining = f"{retry_times_left} " + "attempt" + ("s" if retry_times_left > 1 else "")
                 body = (f"Incorrect choice. I will send you another image in {self.retry_timeout} seconds. "
                         f"You have {remaining} remaining.") if retry_times_left > 0 else \
                     (f"You have failed to identify the emoji in the image {self.retry_limit} times. "
@@ -1069,7 +1069,7 @@ class ChallengeBot(Bot):
                 )
                 self.retry_jail[session_id] = time() + self.retry_timeout
 
-            self.delete_message(msg_id)
+            # self.delete_message(msg_id)
             del self.pending_requests[session_id][room_token]
             if len(self.pending_requests[session_id]) == 0:
                 del self.pending_requests[session_id]
