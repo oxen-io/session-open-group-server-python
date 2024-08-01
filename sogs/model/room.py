@@ -2054,7 +2054,7 @@ class Room:
             access_only = True
             user_whisper_clause = f" AND EXISTS (SELECT id from messages where id = files.message and whisper = {user.id}"
 
-        row = query("SELECT * FROM files WHERE room = :r AND id = :f :u", r=self.id, f=file_id, u=user_whisper_clause).first()
+        row = query("SELECT * FROM files WHERE room = :r AND id = :f" + user_whisper_clause, r=self.id, f=file_id).first()
 
         if not row and db.HAVE_FILE_ID_HACKS and db.HAVE_FILE_ID_HACKS:
             row = query(
