@@ -149,6 +149,9 @@ def message_request(m: oxenmq.Message):
         request = bt_deserialize(m.dataview()[0])
         bytestring_fixup(request, b"alt_id")
 
+        if isinstance(request[b"alt_id"], bytes):
+            app.logger.warning(f"bytestring_fixup is not make the bytes to str!!!!")
+
         filter_resp = bot_filter_message(m.data(), request)
         if filter_resp == "REJECT":
             return bt_serialize({"error": "Message rejected by filter bot(s)"})

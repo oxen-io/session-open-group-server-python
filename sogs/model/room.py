@@ -794,7 +794,6 @@ class Room:
                     msg['reactions'] = reacts.get(msg['id'], {})
 
         for msg in msgs:
-            app.logger.warning(f"msg with session id as {msg['session_id']}")
             if isinstance(msg["session_id"], bytes):
                 app.logger.warning(f"msg with id {msg['id']} gave signing_id as bytes not str")
 
@@ -1017,6 +1016,8 @@ class Room:
 
     def insert_message(self, message):
         with db.transaction():
+            if isinstance(message[b"alt_id"], bytes):
+                app.logger.warning(f"Inserting a message with signing_id as bytes not str")
 
             unpadded_data = utils.remove_session_message_padding(message[b"message_data"])
             msg_id = db.insert_and_get_pk(
