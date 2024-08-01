@@ -640,8 +640,6 @@ class Room:
                 "worker.request_read", req, prefix=None, timeout=timedelta(seconds=3)
             )
 
-            app.logger.warning("New member requests permissions.")
-
         msgs = []
 
         opt_count = sum(arg is not None for arg in (sequence, after, before, single)) + bool(recent)
@@ -672,9 +670,13 @@ class Room:
         # messages created after that, so it is pointless to send them tombstones for messages they
         # don't know about).
         not_deleted_clause = (
-            'AND (data IS NOT NULL OR seqno_creation <= :sequence)'
-            if sequence is not None
-            else 'AND data IS NOT NULL'
+            ''
+            if whispers_only
+            else (
+                'AND (data IS NOT NULL OR seqno_creation <= :sequence)'
+                if sequence is not None
+                else 'AND data IS NOT NULL'
+            )
         )
         message_clause = (
             'AND seqno > :sequence AND seqno_data > :sequence'
