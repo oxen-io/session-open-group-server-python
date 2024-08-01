@@ -447,7 +447,7 @@ class Bot:
                     self.conn,
                     "bot.upload_file",
                     bt_serialize(req),
-                    request_timeout=timedelta(seconds=3),
+                    request_timeout=timedelta(seconds=10),
                 ).get()[0]
             )
 
