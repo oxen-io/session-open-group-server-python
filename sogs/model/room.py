@@ -640,6 +640,8 @@ class Room:
                 "worker.request_read", req, prefix=None, timeout=timedelta(seconds=3)
             )
 
+            app.logger.warning("New member requests permissions.")
+
         msgs = []
 
         opt_count = sum(arg is not None for arg in (sequence, after, before, single)) + bool(recent)

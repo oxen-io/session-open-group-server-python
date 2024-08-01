@@ -871,17 +871,20 @@ class ChallengeBot(Bot):
             pubkey,
             display_name,
             refresh_limit=5,
+            retry_limit=3,
             retry_timeout=120,
             write_timeout=120,
     ):
         self.refresh_reaction = "\U0001F504"
         self.pending_requests = {}  # map {session_id : {room_token : msg_id}}
         self.retry_jail = {}
+        self.retry_limit = retry_limit
         self.refresh_limit = refresh_limit
         self.retry_timeout = retry_timeout
         self.write_timeout = write_timeout
         self.challenges = {}  # map {session_id : Captcha}
         self.refresh_record = {}  # map {session_id: [refresh_timestamps]}
+        self.retry_record = {}  # map {session_id: Int}
         self.captcha_manager = CaptchaManager(initial_count=2000)
 
         Bot.__init__(self, sogs_address, sogs_pubkey, privkey, pubkey, display_name)
@@ -949,6 +952,10 @@ class ChallengeBot(Bot):
     def handle_request_read(self, req):
         room_token = req[b'room_token']
         session_id = req[b'session_id']
+        if session_id in self.retry_record:
+            if self.retry_record[session_id] >= self.retry_limit:
+                return bt_serialize("JAIL FOREVER")
+
         if session_id in self.retry_jail:
             if time() > self.retry_jail[session_id]:
                 del self.retry_jail[session_id]
@@ -967,7 +974,7 @@ class ChallengeBot(Bot):
             file_meta = self.upload_file(file_path, room_token)
             msg_id = self.post_message(
                 room_token,
-                f"{self.challenges[session_id].question} You can refresh the picture by reacting \U0001F504.",
+                f"{self.challenges[session_id].question} You can refresh the picture by reacting with \U0001F504.",
                 whisper_target=session_id,
                 no_bots=True,
                 files=[file_meta,]
@@ -1042,9 +1049,19 @@ class ChallengeBot(Bot):
                 )
             else:
                 print(f"Wrong answer! Can't grant permission to {session_id}")
+                if session_id not in self.retry_record:
+                    self.retry_record[session_id] = 0
+
+                self.retry_record[session_id] += 1
+                retry_times_left = self.retry_limit - self.retry_record[session_id]
+                body = (f"Incorrect choice. I will send you another image in {self.retry_timeout} seconds. "
+                        f"You have {retry_times_left} attempts remaining.") if retry_times_left > 0 else \
+                    (f"You have failed to identify the emoji in the image {self.retry_limit} times. "
+                     f"Please contact the community administrator for assistance.")
+
                 self.post_message(
                     room_token,
-                    f"You chose...poorly. You may try again in {self.retry_timeout} seconds with a new prompt.",
+                    body,
                     whisper_target=session_id,
                     no_bots=True,
                 )
