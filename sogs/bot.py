@@ -878,6 +878,7 @@ class ChallengeBot(Bot):
     ):
         self.refresh_reaction = "\U0001F504"
         self.pending_requests = {}  # map {session_id : {room_token : msg_id}}
+        self.pending_delete_response = {}  # map {session_id : msg_id}
         self.retry_jail = {}
         self.retry_limit = retry_limit
         self.refresh_limit = refresh_limit
@@ -970,6 +971,10 @@ class ChallengeBot(Bot):
 
     def post_challenge(self, room_token, session_id):
         try:
+            if session_id in self.pending_delete_response:
+                self.delete_message(self.pending_delete_response[session_id])
+                del self.pending_delete_response[session_id]
+
             self.refresh_capcha_handler(session_id)
             file_path = self.challenges[session_id].file_name
             file_meta = self.upload_file(file_path, room_token)
@@ -1061,15 +1066,16 @@ class ChallengeBot(Bot):
                     (f"You have failed to identify the emoji in the image {self.retry_limit} times. "
                      f"Please contact the community administrator for assistance.")
 
-                self.post_message(
+                response_msg_id = self.post_message(
                     room_token,
                     body,
                     whisper_target=session_id,
                     no_bots=True,
                 )
                 self.retry_jail[session_id] = time() + self.retry_timeout
+                self.pending_delete_response[session_id] = response_msg_id
 
-            # self.delete_message(msg_id)
+            self.delete_message(msg_id)
             del self.pending_requests[session_id][room_token]
             if len(self.pending_requests[session_id]) == 0:
                 del self.pending_requests[session_id]
