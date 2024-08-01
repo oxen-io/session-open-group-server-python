@@ -147,7 +147,7 @@ class CaptchaManager:
 
     IMAGES_DIR = "async_generated_images"
 
-    def __init__(self, initial_count=2000):
+    def __init__(self, initial_count=200):
         self.captcha_list = []
         os.makedirs(CaptchaManager.IMAGES_DIR, exist_ok=True)
         start_time = time.time()
@@ -170,7 +170,7 @@ class CaptchaManager:
 
     def refresh(self) -> Captcha:
         if len(self.captcha_list) == 0:
-            asyncio.run(self.batch_generate_captcha(200))
+            asyncio.run(self.batch_generate_captcha(20))
         return self.captcha_list.pop()
 
 

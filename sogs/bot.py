@@ -337,6 +337,7 @@ class Bot:
         Tells sogs to delete the specified message.
         The message must have been created by this bot.
         """
+        print(f"Delete message id {msg_id}")
         self.omq.send(self.conn, "bot.delete_message", bt_serialize({'msg_id': msg_id}))
 
     def post_message(self, room_token, body, *args, whisper_target=None, no_bots=False, files=None):
@@ -1028,8 +1029,8 @@ class ChallengeBot(Bot):
                     self.retry_jail[session_id] = time() + self.retry_timeout
                 else:
                     self.refresh_record[session_id].append(time())
+                    self.delete_message(msg_id)
                     self.post_challenge(room_token, session_id)
-                    # self.delete_message(msg_id)
                     return
             elif reaction == self.challenges[session_id].answer:
                 print(f"Granting permissions to {session_id} for room with token {room_token}")
@@ -1068,7 +1069,7 @@ class ChallengeBot(Bot):
                 )
                 self.retry_jail[session_id] = time() + self.retry_timeout
 
-            # self.delete_message(msg_id)
+            self.delete_message(msg_id)
             del self.pending_requests[session_id][room_token]
             if len(self.pending_requests[session_id]) == 0:
                 del self.pending_requests[session_id]
