@@ -212,7 +212,7 @@ def request_read(m: oxenmq.Message):
     try:
         app.logger.debug(f"Giving command 'request_read' to bot (id={bot_id})")
         resp = o.omq.request_future(
-            bot_conns[bot_id], "bot.request_read", m.data(), request_timeout=timedelta(seconds=10)
+            bot_conns[bot_id], "bot.request_read", m.data(), request_timeout=timedelta(seconds=1)
         ).get()
     except TimeoutError as e:
         app.logger.warning(f"Timeout from bot (id={bot_id}) handling request_read")

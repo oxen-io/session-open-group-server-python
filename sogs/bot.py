@@ -329,7 +329,7 @@ class Bot:
             self.conn,
             "bot.set_user_room_permissions",
             bt_serialize(req),
-            request_timeout=timedelta(seconds=5),
+            request_timeout=timedelta(seconds=1),
         ).get()[0]
 
     def delete_message(self, msg_id: int):
@@ -428,7 +428,7 @@ class Bot:
                 self.conn,
                 "bot.post_reactions",
                 bt_serialize(req),
-                request_timeout=timedelta(seconds=10),
+                request_timeout=timedelta(seconds=1),
             ).get()[0]
         )
 
