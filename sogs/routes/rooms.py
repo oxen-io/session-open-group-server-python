@@ -888,6 +888,7 @@ def serve_file(room, fileId):
 
     - 404 Not Found — Returned if the attachment does not exist in this room (or has expired).
     """
+    app.logger.warning(g.user)
     room_file = room.get_file(fileId, g.user)
     if not room_file:
         abort(http.NOT_FOUND)

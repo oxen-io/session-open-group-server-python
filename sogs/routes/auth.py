@@ -366,3 +366,4 @@ def handle_http_auth():
 
     user.touch()
     g.user = user
+    app.logger.warning(g.user)
