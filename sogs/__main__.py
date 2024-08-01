@@ -256,7 +256,7 @@ from . import web
 from .model.room import Room, get_rooms
 from .model.user import User, SystemUser, get_all_global_moderators
 from .model.exc import AlreadyExists, NoSuchRoom, NoSuchUser
-from sogs.bot import ChallengeBot
+from sogs.challenge_bot import ChallengeBot
 
 web.appdb = db.get_conn()
 
