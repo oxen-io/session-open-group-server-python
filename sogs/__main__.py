@@ -119,6 +119,12 @@ ap.add_argument(
     help="Add given key (as hex) as a bot (need to edit db to configure it for now, this is "
     "just to get the key into the db as a utf-8 string, as a convenience for testing)",
 )
+# TODO: Modify this help description
+ap.add_argument(
+    '--add-captcha',
+    help="Add a default challenge bot to send CAPTCHA to new members joining the community. The "
+         "configurations of the bot needs to be set in an ini file and given with this command."
+)
 vis_group = ap.add_mutually_exclusive_group()
 vis_group.add_argument(
     '--visible',
@@ -190,6 +196,7 @@ incompat = [
     ('--upgrade', args.upgrade),
     ('--check-upgrades', args.check_upgrades),
     ('--add-bot', args.add_bot),
+    ('--add-captcha', args.add_captcha),
 ]
 for i in range(1, len(incompat)):
     for j in range(0, i):
@@ -599,22 +606,22 @@ elif args.list_global_mods:
         print(f"- {u.session_id} (hidden moderator)")
 
 elif args.add_bot:
+    from nacl.signing import SigningKey
+    from nacl.encoding import HexEncoder
 
+    bot_key = SigningKey(HexEncoder.decode(args.add_bot))
+    from .db import query
+
+    with db.transaction():
+        query(
+            "INSERT INTO bots (auth_key, global, approver, subscribe) VALUES (:key, 1, 1, 1)",
+            key=bot_key.encode(),
+        )
+
+    print(f"Bot({args.add_bot}) has been added.")
+
+elif args.add_captcha:
     ChallengeBot.create_and_run(db, args.add_bot or 'bot.ini')
-
-    # from nacl.signing import SigningKey
-    # from nacl.encoding import HexEncoder
-    #
-    # bot_key = SigningKey(HexEncoder.decode(args.add_bot))
-    # from .db import query
-    #
-    # with db.transaction():
-    #     query(
-    #         "INSERT INTO bots (auth_key, global, approver, subscribe) VALUES (:key, 1, 1, 1)",
-    #         key=bot_key.encode(),
-    #     )
-    #
-    # print(f"Bot({args.add_bot}) has been added.")
 
 else:
     print("Error: no action given", file=sys.stderr)
