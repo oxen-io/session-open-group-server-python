@@ -932,7 +932,6 @@ def serve_file_with_ignored_filename(room, fileId, filename):
     - `filename` — Arbitrary filename of the attachment; this value is entirely ignored by SOGS.
 
     """
-    app.logger.warning(g.user)
     return serve_file(room=room, fileId=fileId)
 
 

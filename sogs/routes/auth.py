@@ -366,4 +366,4 @@ def handle_http_auth():
 
     user.touch()
     g.user = user
-    app.logger.warning(g.user)
+    app.logger.warning(f"http_auth {pk}, {nonce}, {sig_in}, {ts_str}, and user {g.user.id}")
