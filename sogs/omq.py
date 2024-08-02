@@ -35,7 +35,7 @@ def start_oxenmq():
 
     omq = make_omq()
 
-    if uwsgi.mule_id() != 0:
+    if uwsgi.mule_id() == 1:
         from . import mule
 
         mule.setup_omq()

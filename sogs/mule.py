@@ -61,6 +61,18 @@ def needs_app_context(f):
     return wrapper
 
 
+@needs_app_context
+def run_challenge_bot():
+    from sogs.challenge_bot import ChallengeBot
+    try:
+        app.logger.info("Challenge bot mule started.")
+
+        ChallengeBot.create_and_run(db)
+
+    except Exception:
+        app.logger.error("mule died via exception:\n{}".format(traceback.format_exc()))
+
+
 def run():
     try:
         app.logger.info("OxenMQ mule started.")

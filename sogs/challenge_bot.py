@@ -54,7 +54,9 @@ class ChallengeBot(Bot):
         bot_name = cp.get('bot', 'name')
         bot_privkey_hex_str = cp.get('bot', 'privkey_hex')
         sogs_key_hex_str = cp.get('sogs', 'sogs_pubkey_hex')
-        sogs_address = cp.get('sogs', 'sogs_address')
+        sogs_address = None
+        if cp.has_option('sogs', 'sogs_address'):
+            sogs_address = cp.get('sogs', 'sogs_address')
 
         if not bot_privkey_hex_str:
             app.logger.warning("bot private key hex missing")
@@ -75,7 +77,7 @@ class ChallengeBot(Bot):
         pubkey_bytes = privkey.verify_key.encode()
         print(f"pubkey: {privkey.verify_key.encode(HexEncoder)}")
         bot = ChallengeBot(
-            sogs_address or "tcp://*:22028", sogs_key_bytes, privkey_bytes, pubkey_bytes, bot_name or "Challenge Bot"
+            sogs_address or "ipc://./omq.sock", sogs_key_bytes, privkey_bytes, pubkey_bytes, bot_name or "Challenge Bot"
         )
 
         bot_key = SigningKey(bot.x_pub)
@@ -224,13 +226,3 @@ class ChallengeBot(Bot):
             del self.pending_requests[session_id][room_token]
             if len(self.pending_requests[session_id]) == 0:
                 del self.pending_requests[session_id]
-
-
-def run():
-    try:
-        app.logger.info("Challenge bot mule started.")
-
-        ChallengeBot.create_and_run()
-
-    except Exception:
-        app.logger.error("mule died via exception:\n{}".format(traceback.format_exc()))
