@@ -77,7 +77,7 @@ class ChallengeBot(Bot):
         pubkey_bytes = privkey.verify_key.encode()
         print(f"pubkey: {privkey.verify_key.encode(HexEncoder)}")
         bot = ChallengeBot(
-            sogs_address, sogs_key_bytes, privkey_bytes, pubkey_bytes, bot_name or "Challenge Bot"
+            sogs_address, sogs_key_bytes, privkey_bytes, pubkey_bytes, bot_name or "Challenge Bot", write_timeout=0
         )
 
         bot_key = SigningKey(bot.x_pub)
@@ -186,20 +186,32 @@ class ChallengeBot(Bot):
                     return
             elif reaction == self.challenges[session_id].answer:
                 print(f"Granting permissions to {session_id} for room with token {room_token}")
-                self.post_message(
-                    room_token,
-                    f"Congrats! You can read now. You will be able to write in {self.write_timeout} seconds.",
-                    whisper_target=session_id,
-                    no_bots=True,
-                )
-                # Grant read permission immediately after receiving the correct reaction
-                self.set_user_room_permissions(
-                    room_token=room_token, user_session_id=session_id, sec_from_now=None, read=True
-                )
-                # Grant write permission after {self.write_timeout} time
-                self.set_user_room_permissions(
-                    room_token=room_token, user_session_id=session_id, sec_from_now=self.write_timeout, write=True
-                )
+                if self.write_timeout == 0:
+                    self.post_message(
+                        room_token,
+                        "Congrats! You can read and write now.",
+                        whisper_target=session_id,
+                        no_bots=True,
+                    )
+                    # Grant read and write permission immediately after receiving the correct reaction
+                    self.set_user_room_permissions(
+                        room_token=room_token, user_session_id=session_id, sec_from_now=None, read=True, write=True
+                    )
+                else:
+                    self.post_message(
+                        room_token,
+                        f"Congrats! You can read now. You will be able to write in {self.write_timeout} seconds.",
+                        whisper_target=session_id,
+                        no_bots=True,
+                    )
+                    # Grant read permission immediately after receiving the correct reaction
+                    self.set_user_room_permissions(
+                        room_token=room_token, user_session_id=session_id, sec_from_now=None, read=True
+                    )
+                    # Grant write permission after {self.write_timeout} time
+                    self.set_user_room_permissions(
+                        room_token=room_token, user_session_id=session_id, sec_from_now=self.write_timeout, write=True
+                    )
             else:
                 print(f"Wrong answer! Can't grant permission to {session_id}")
                 if session_id not in self.retry_record:
