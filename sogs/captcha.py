@@ -134,7 +134,7 @@ class EmojiCaptcha(Captcha):
         draw.text(
             (emoji_x, emoji_y),
             self.answer,
-            font=ImageFont.truetype(EmojiCaptcha.FONT_PATH, EmojiCaptcha.FONT_SIZE, layout_engine=ImageFont.LAYOUT_RAQM),
+            font=ImageFont.truetype(EmojiCaptcha.FONT_PATH, EmojiCaptcha.FONT_SIZE, layout_engine=ImageFont.Layout.RAQM,
             embedded_color=True
         )
 
