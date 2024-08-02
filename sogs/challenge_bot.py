@@ -4,7 +4,7 @@ from sogs.web import app
 import configparser
 import sqlalchemy.exc
 from sogs.bot import *
-import traceback
+import sogs.config as config
 
 
 class ChallengeBot(Bot):
@@ -54,7 +54,7 @@ class ChallengeBot(Bot):
         bot_name = cp.get('bot', 'name')
         bot_privkey_hex_str = cp.get('bot', 'privkey_hex')
         sogs_key_hex_str = cp.get('sogs', 'sogs_pubkey_hex')
-        sogs_address = None
+        sogs_address = config.OMQ_LISTEN
         if cp.has_option('sogs', 'sogs_address'):
             sogs_address = cp.get('sogs', 'sogs_address')
 
@@ -77,7 +77,7 @@ class ChallengeBot(Bot):
         pubkey_bytes = privkey.verify_key.encode()
         print(f"pubkey: {privkey.verify_key.encode(HexEncoder)}")
         bot = ChallengeBot(
-            sogs_address or "ipc://./omq.sock", sogs_key_bytes, privkey_bytes, pubkey_bytes, bot_name or "Challenge Bot"
+            sogs_address, sogs_key_bytes, privkey_bytes, pubkey_bytes, bot_name or "Challenge Bot"
         )
 
         bot_key = SigningKey(bot.x_pub)
