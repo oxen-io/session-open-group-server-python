@@ -87,7 +87,7 @@ class EmojiCaptcha(Captcha):
                     fill=self.color
                 )
 
-    FONT_PATH = 'sogs/NotoColorEmoji.ttf'
+    FONT_PATH = 'NotoColorEmoji.ttf'
     # Bitmap fonts don't support scaling with freetype, so you must specify a valid size,
     # which is 109 for Noto Color Emoji.
     FONT_SIZE = 109
@@ -134,7 +134,7 @@ class EmojiCaptcha(Captcha):
         draw.text(
             (emoji_x, emoji_y),
             self.answer,
-            font=ImageFont.truetype(EmojiCaptcha.FONT_PATH, EmojiCaptcha.FONT_SIZE, layout_engine=ImageFont.Layout.RAQM),
+            font=ImageFont.truetype(EmojiCaptcha.FONT_PATH, EmojiCaptcha.FONT_SIZE, layout_engine=ImageFont.LAYOUT_RAQM),
             embedded_color=True
         )
 
