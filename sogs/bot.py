@@ -403,7 +403,7 @@ class Bot:
 
         resp = bt_deserialize(
             self.omq.request_future(
-                self.conn, "bot.message", bt_serialize(req), request_timeout=timedelta(seconds=1)
+                self.conn, "bot.message", bt_serialize(req), request_timeout=timedelta(seconds=5)
             ).get()[0]
         )
         if not b'msg_id' in resp:
@@ -420,7 +420,7 @@ class Bot:
                 self.conn,
                 "bot.post_reactions",
                 bt_serialize(req),
-                request_timeout=timedelta(seconds=1),
+                request_timeout=timedelta(seconds=5),
             ).get()[0]
         )
 
