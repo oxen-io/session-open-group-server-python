@@ -146,14 +146,15 @@ class ChallengeBot(Bot):
                 files=[file_meta,]
             )
             print(f'Message id: {msg_id}')
-            if msg_id and refresh_times_left > 0:
-                react_resp = self.post_reactions(
-                    room_token, msg_id, self.refresh_reaction
-                )
-                print(f'React response: {react_resp}')
-                if b'error' in react_resp:
-                    print(f"Error adding reactions to whisper: {react_resp[b'error']}")
-                    return bt_serialize("ERROR")
+            if msg_id:
+                if refresh_times_left > 0:
+                    react_resp = self.post_reactions(
+                        room_token, msg_id, self.refresh_reaction
+                    )
+                    print(f'React response: {react_resp}')
+                    if b'error' in react_resp:
+                        print(f"Error adding reactions to whisper: {react_resp[b'error']}")
+                        return bt_serialize("ERROR")
                 if session_id not in self.pending_requests:
                     self.pending_requests[session_id] = dict()
                 self.pending_requests[session_id][room_token] = msg_id
