@@ -16,7 +16,7 @@ class ChallengeBot(Bot):
             privkey,
             pubkey,
             display_name,
-            refresh_limit=5,
+            refresh_limit=3,
             retry_limit=3,
             retry_timeout=120,
             write_timeout=120,
@@ -30,7 +30,7 @@ class ChallengeBot(Bot):
         self.retry_timeout = retry_timeout
         self.write_timeout = write_timeout
         self.challenges = {}  # map {session_id : Captcha}
-        self.refresh_record = {}  # map {session_id: [refresh_timestamps]}
+        self.refresh_record = {}  # map {session_id: Int}
         self.retry_record = {}  # map {session_id: Int}
         self.captcha_manager = CaptchaManager(initial_count=200)
 
@@ -125,9 +125,16 @@ class ChallengeBot(Bot):
             self.refresh_capcha_handler(session_id)
             file_path = self.challenges[session_id].file_name
             file_meta = self.upload_file(file_path, room_token)
+            refresh_times_left = self.refresh_limit
+            if session_id in self.refresh_record:
+                refresh_times_left -= self.refresh_record[session_id]
+            remaining = f"{refresh_times_left} " + "time" + ("s" if refresh_times_left > 1 else "")
+            body = (f"{self.challenges[session_id].question} "
+                    f"You can refresh the picture by reacting with \U0001F504. "
+                    f"You have {remaining} remaining to refresh.")
             msg_id = self.post_message(
                 room_token,
-                f"{self.challenges[session_id].question} You can refresh the picture by reacting with \U0001F504.",
+                body,
                 whisper_target=session_id,
                 no_bots=True,
                 files=[file_meta,]
@@ -170,17 +177,17 @@ class ChallengeBot(Bot):
             if reaction == self.refresh_reaction:
                 print(f"{session_id} request refreshing challenge.")
                 if session_id not in self.refresh_record:
-                    self.refresh_record[session_id] = []
-                if len(self.refresh_record[session_id]) >= self.refresh_limit:
+                    self.refresh_record[session_id] = 0
+                if self.refresh_record[session_id] >= self.refresh_limit:
                     self.post_message(
                         room_token,
-                        f"Whoa, slow down! You may try again in {self.retry_timeout} seconds with a new prompt.",
+                        f"You have hit the limit of refreshing the challenge. "
+                        f"Please try to solve the current challenge by reacting the emoji in the image.",
                         whisper_target=session_id,
                         no_bots=True
                     )
-                    self.retry_jail[session_id] = time() + self.retry_timeout
                 else:
-                    self.refresh_record[session_id].append(time())
+                    self.refresh_record[session_id] += 1
                     self.delete_message(msg_id)
                     self.post_challenge(room_token, session_id)
                     return
