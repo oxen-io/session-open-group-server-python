@@ -125,13 +125,19 @@ class ChallengeBot(Bot):
             self.refresh_capcha_handler(session_id)
             file_path = self.challenges[session_id].file_name
             file_meta = self.upload_file(file_path, room_token)
+
+            body = f"{self.challenges[session_id].question} "
+
             refresh_times_left = self.refresh_limit
             if session_id in self.refresh_record:
                 refresh_times_left -= self.refresh_record[session_id]
             remaining = f"{refresh_times_left} " + "time" + ("s" if refresh_times_left > 1 else "")
-            body = (f"{self.challenges[session_id].question} "
-                    f"You can refresh the picture by reacting with \U0001F504. "
-                    f"You have {remaining} remaining to refresh.")
+            body += (f"You have hit the limit of refreshing the challenge. "
+                     f"Please try to solve the current challenge by reacting the emoji in the image.") \
+                if refresh_times_left == 0 \
+                else (f"You can refresh the picture by reacting with \U0001F504. "
+                      f"You have {remaining} remaining to refresh.")
+
             msg_id = self.post_message(
                 room_token,
                 body,
@@ -140,7 +146,7 @@ class ChallengeBot(Bot):
                 files=[file_meta,]
             )
             print(f'Message id: {msg_id}')
-            if msg_id:
+            if msg_id and refresh_times_left > 0:
                 react_resp = self.post_reactions(
                     room_token, msg_id, self.refresh_reaction
                 )
@@ -178,20 +184,13 @@ class ChallengeBot(Bot):
                 print(f"{session_id} request refreshing challenge.")
                 if session_id not in self.refresh_record:
                     self.refresh_record[session_id] = 0
-                if self.refresh_record[session_id] >= self.refresh_limit:
-                    self.post_message(
-                        room_token,
-                        f"You have hit the limit of refreshing the challenge. "
-                        f"Please try to solve the current challenge by reacting the emoji in the image.",
-                        whisper_target=session_id,
-                        no_bots=True
-                    )
-                else:
+                if self.refresh_record[session_id] < self.refresh_limit:
                     self.refresh_record[session_id] += 1
                     self.delete_message(msg_id)
                     self.post_challenge(room_token, session_id)
-                    return
-            elif reaction == self.challenges[session_id].answer:
+                return
+
+            if reaction == self.challenges[session_id].answer:
                 print(f"Granting permissions to {session_id} for room with token {room_token}")
                 if self.write_timeout == 0:
                     self.post_message(
