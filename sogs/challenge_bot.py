@@ -7,11 +7,15 @@ from sogs.bot import *
 import sogs.config as config
 
 
-def delete(dic, outer_key, inner_key):
-    del dic[outer_key][inner_key]
-    if len(dic[outer_key]) == 0:
-        del dic[outer_key]
+def _delete(_dict, outer_key, inner_key):
+    del _dict[outer_key][inner_key]
+    if len(_dict[outer_key]) == 0:
+        del _dict[outer_key]
 
+def _set(_dict, outer_key, inner_key, value):
+    if outer_key not in _dict:
+        _dict[outer_key] = dict()
+    _dict[outer_key][inner_key] = value
 
 class ChallengeBot(Bot):
 
@@ -145,7 +149,7 @@ class ChallengeBot(Bot):
 
         if session_id in self.retry_jail and room_token in self.retry_jail[session_id]:
             if time() > self.retry_jail[session_id][room_token]:
-                delete(self.retry_jail, session_id, room_token)
+                _delete(self.retry_jail, session_id, room_token)
             else:
                 return bt_serialize("JAIL")
 
@@ -158,7 +162,7 @@ class ChallengeBot(Bot):
         try:
             if session_id in self.pending_delete and room_token in self.pending_delete[session_id]:
                 self.delete_messages(self.pending_delete[session_id][room_token])
-                delete(self.pending_delete, session_id, room_token)
+                _delete(self.pending_delete, session_id, room_token)
 
             self.refresh_capcha_handler(session_id, room_token)
             captcha = self.challenges[session_id][room_token][0]
@@ -194,18 +198,14 @@ class ChallengeBot(Bot):
                     if b'error' in react_resp:
                         print(f"Error adding reactions to whisper: {react_resp[b'error']}")
                         return bt_serialize("ERROR")
-                if session_id not in self.pending_requests:
-                    self.pending_requests[session_id] = dict()
-                self.pending_requests[session_id][room_token] = msg_id
+                _set(self.pending_requests, session_id, room_token, msg_id)
         except:
             import traceback
             print(traceback.format_exc())
         return bt_serialize("OK")
 
     def refresh_capcha_handler(self, session_id, room_token):
-        if session_id not in self.challenges:
-            self.challenges[session_id] = dict()
-        self.challenges[session_id][room_token] = (self.captcha_manager.refresh(), time())
+        _set(self.challenges, session_id, room_token, (self.captcha_manager.refresh(), time()))
 
     def handle_refresh(self, msg_id, session_id, room_token):
         if session_id not in self.retry_record or room_token not in self.retry_record[session_id]:
@@ -259,12 +259,10 @@ class ChallengeBot(Bot):
             )
 
         self.delete_message(msg_id)
-        delete(self.pending_requests, session_id, room_token)
+        _delete(self.pending_requests, session_id, room_token)
 
     def handle_failure(self, msg_id, session_id, room_token):
-        if session_id not in self.retry_record or room_token not in self.retry_record:
-            self.retry_record[session_id][room_token] = 0
-
+        _set(self.retry_record, session_id, room_token, 0)
         self.retry_record[session_id][room_token] += 1
         retry_times_left = self.retry_limit - self.retry_record[session_id][room_token]
         remaining = f"{retry_times_left} " + "attempt" + ("s" if retry_times_left > 1 else "")
@@ -283,7 +281,7 @@ class ChallengeBot(Bot):
         self.pending_delete[session_id][room_token].append(response_msg_id)
 
         self.delete_message(msg_id)
-        delete(self.pending_requests, session_id, room_token)
+        _delete(self.pending_requests, session_id, room_token)
 
     def reaction_posted(self, m: oxenmq.Message):
         req = bt_deserialize(m.dataview()[0])
