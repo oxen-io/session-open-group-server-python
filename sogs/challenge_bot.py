@@ -174,7 +174,7 @@ class ChallengeBot(Bot):
             body = f"{captcha.question} "
 
             refresh_times_left = self.retry_limit
-            if session_id in self.retry_record and room_token in self.retry_record:
+            if session_id in self.retry_record and room_token in self.retry_record[session_id]:
                 refresh_times_left -= self.retry_record[session_id][room_token]
             remaining = f"{refresh_times_left} " + "time" + ("s" if refresh_times_left > 1 else "")
             refresh = f" after {self.refresh_timeout} second{'s' if self.refresh_timeout > 1 else ''}" \
