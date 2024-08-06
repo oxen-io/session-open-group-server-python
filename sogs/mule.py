@@ -394,6 +394,7 @@ def setup_omq():
     bot.add_command("register_post_commands", bot_register_post_command)
     bot.add_command("delete_message", bot_delete_message)
     bot.add_request_command("post_reactions", bot_post_reactions)
+    bot.add_request_command("remove_reactions", bot_remove_reactions)
     bot.add_request_command("message", bot_insert_message)
     bot.add_request_command("upload_file", bot_upload_file)
     bot.add_request_command("set_user_room_permissions", bot_set_user_room_permissions)
@@ -728,6 +729,35 @@ def bot_post_reactions(m: oxenmq.Message):
                 req[b'msg_id'],
                 reaction.decode('utf-8'),
                 send_to_bots=False,
+            )
+    except NoSuchRoom as e:
+        app.logger.warning(f"Error: {e}")
+        return bt_serialize({'error': 'NoSuchRoom'})
+    except Exception as e:
+        app.logger.warning(f"Error: {e}")
+        return bt_serialize({'error': 'Something getting wrong'})
+    return bt_serialize({'status': 'OK'})
+
+
+@needs_app_context
+@log_exceptions
+def bot_remove_reactions(m: oxenmq.Message):
+    """
+    Remove all other reactions not from this bot to a single message.
+    """
+    try:
+        req = bt_deserialize(m.dataview()[0])
+        for key in (b'room_token', b'msg_id', b'reactions'):
+            if not key in req:
+                return bt_serialize({'error': f"missing parameter {key}"})
+
+        room = Room(token=req[b'room_token'].decode('ascii'))
+        for reaction in req[b'reactions']:
+            app.logger.debug(f"bot_remove_reactions, removing reactions from room")
+            room.delete_other_reactions(
+                bot_conn_info[m.conn]['user'],
+                req[b'msg_id'],
+                reaction.decode('utf-8'),
             )
     except NoSuchRoom as e:
         app.logger.warning(f"Error: {e}")

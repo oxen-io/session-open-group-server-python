@@ -1578,6 +1578,33 @@ class Room:
 
         return removed, seqno
 
+    def delete_other_reactions(self, user: User, msg_id: int, reaction: str):
+        """
+        Removes a reaction from the given post.  Returns True if the reaction was removed, False if
+        the reaction was not present, throws on other errors.
+
+        The requirements (and thrown exceptions) are the same as add_reaction.
+        """
+
+        self._check_reaction_request(user, msg_id, reaction)
+        with db.transaction():
+            removed = (
+                    query(
+                        """
+                        DELETE FROM user_reactions
+                        WHERE reaction = (SELECT id FROM reactions WHERE message = :m AND reaction = :r)
+                            AND "user" <> :u
+                        """,
+                        m=msg_id,
+                        r=reaction,
+                        u=user.id,
+                    ).rowcount
+                    > 0
+            )
+            seqno = query("SELECT seqno FROM messages WHERE id = :msg", msg=msg_id).first()[0]
+
+        return removed, seqno
+
     def delete_all_reactions(self, mod: User, msg_id: int, reaction: Optional[str] = None):
         """
         Removes all reactions from a post.  Supports removing all of a single reaction, or all

@@ -429,6 +429,18 @@ class Bot:
             ).get()[0]
         )
 
+    def remove_reactions(self, room_token, msg_id, *reactions):
+        req = {"room_token": room_token, "msg_id": msg_id, "reactions": reactions}
+        print(f"post_reactions request: {req}")
+        return bt_deserialize(
+            self.omq.request_future(
+                self.conn,
+                "bot.remove_reactions",
+                bt_serialize(req),
+                request_timeout=timedelta(seconds=5),
+            ).get()[0]
+        )
+
     def upload_file(self, file_path, room_token, display_filename=None):
         try:
             from os import path

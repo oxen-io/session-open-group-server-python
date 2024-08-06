@@ -220,6 +220,10 @@ class ChallengeBot(Bot):
 
         timeout = int(self.refresh_timeout - (time() - self.challenges[session_id][room_token][1]))
         if timeout > 0:
+            unreact_resp = self.remove_reactions(
+                room_token, msg_id, self.refresh_reaction
+            )
+            print(f'React response: {unreact_resp}')
             msg_id = self.post_message(
                 room_token,
                 f"You can refresh in {timeout} second{'s' if timeout > 1 else ''}.",
