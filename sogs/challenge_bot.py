@@ -215,11 +215,11 @@ class ChallengeBot(Bot):
         if self.retry_record[session_id][room_token] >= self.retry_limit:
             return
 
-        timeout = self.refresh_timeout - (time() - self.challenges[session_id][room_token][1])
+        timeout = int(self.refresh_timeout - (time() - self.challenges[session_id][room_token][1]))
         if timeout > 0:
             msg_id = self.post_message(
                 room_token,
-                f"You can refresh in {timeout} second {'s' if timeout > 1 else ''}.",
+                f"You can refresh in {timeout} second{'s' if timeout > 1 else ''}.",
                 whisper_target=session_id,
                 no_bots=True
             )
