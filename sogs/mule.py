@@ -576,6 +576,7 @@ def bot_delete_message(m: oxenmq.Message):
             """DELETE FROM message_details WHERE id IN :msg_ids AND "user" = :user""",
             msg_ids=msg_ids,
             user=bot_conn_info[m.conn]['user'].id,
+            bind_expanding=['msg_ids'],
         )
         if rowcount:
             app.logger.warning(f"Deleted message with ids {msg_ids}")
