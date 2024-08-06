@@ -7,10 +7,10 @@ from sogs.bot import *
 import sogs.config as config
 
 
-def delete(dic, key_1, key_2):
-    del dic[key_1][key_2]
-    if len(dic[key_1]) == 0:
-        del dic[key_1]
+def delete(dic, outer_key, inner_key):
+    del dic[outer_key][inner_key]
+    if len(dic[outer_key]) == 0:
+        del dic[outer_key]
 
 
 class ChallengeBot(Bot):
