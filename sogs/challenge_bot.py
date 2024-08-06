@@ -177,10 +177,13 @@ class ChallengeBot(Bot):
             if session_id in self.retry_record and room_token in self.retry_record:
                 refresh_times_left -= self.retry_record[session_id][room_token]
             remaining = f"{refresh_times_left} " + "time" + ("s" if refresh_times_left > 1 else "")
+            refresh = f" after {self.refresh_timeout} second{'s' if self.refresh_timeout > 1 else ''}" \
+                if self.refresh_timeout > 0 \
+                else ""
             body += (f"You have hit the limit of refreshing the challenge. "
                      f"Please try to solve the current challenge by reacting the emoji in the image.") \
                 if refresh_times_left == 0 \
-                else (f"You can refresh the picture by reacting with \U0001F504. "
+                else (f"You can refresh the picture by reacting with \U0001F504{refresh}. "
                       f"You have {remaining} remaining to refresh.")
 
             msg_id = self.post_message(
