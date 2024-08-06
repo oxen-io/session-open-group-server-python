@@ -1,13 +1,33 @@
-; SOGS bot configuration.
+; SOGS challenge bot configuration.
 
 [bot]
-
+; The name of the challenge bot, this will be displayed as the name of the bot on Session client
+;
 name = bot
 
+; The 32 bytes private key hex for the bot
+;
 privkey_hex = 489327e8db1e9f6e05c4ad4d75b8bef6aeb8ad78ae6b3d4a74b96455b7438e79
+
+; This is the total time we give a user to try to solve the challenge, after all these tries, the user
+; needs to contact the sogs operator for granting permissions
+;
+retry_limit = 3
+
+; This is the seconds we want to wait before we give a user write permission
+;
+write_timeout = 0
+
+; This is the seconds we want the user to wait before they can get a new challenge by refreshing it
+;
+refresh_timeout = 60
+
+; This is the seconds we want the user to wait before they can get a new challenge if they fail the challenge
+;
+retry_timeout = 120
 
 [sogs]
 
 sogs_pubkey_hex = cc9259d48bc590c6d7c53305474e9979e50727f977926eb0094f3849df9ae94a
 
-sogs_address = tcp://127.0.0.1:43210
+sogs_address = tcp://127.0.0.1:22028

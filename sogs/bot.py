@@ -6,6 +6,7 @@ import nacl.bindings as sodium
 from datetime import timedelta
 from time import time
 from sogs.model.post import Post
+from typing import List
 
 
 class Bot:
@@ -331,6 +332,10 @@ class Bot:
         """
         print(f"Delete message id {msg_id}")
         self.omq.send(self.conn, "bot.delete_message", bt_serialize({'msg_id': msg_id}))
+
+    def delete_messages(self, msg_ids: List[int]):
+        print(f"Delete message id {msg_ids}")
+        self.omq.send(self.conn, "bot.delete_message", bt_serialize({'msg_ids': msg_ids}))
 
     def post_message(self, room_token, body, *args, whisper_target=None, no_bots=False, files=None):
         from sogs import session_pb2 as protobuf

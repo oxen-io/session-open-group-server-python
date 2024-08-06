@@ -566,17 +566,21 @@ def bot_delete_message(m: oxenmq.Message):
     if not m.conn in bot_conn_info or not 'user' in bot_conn_info[m.conn]:
         return
     req = bt_deserialize(m.dataview()[0])
-    msg_id = req[b'msg_id']
+    msg_ids = []
+    if b'msg_ids' in req:
+        msg_ids = req[b'msg_ids']
+    if b'msg_id' in req:
+        msg_ids.append(req[b'msg_id'])
     with db.transaction():
         rowcount = query(
-            """DELETE FROM message_details WHERE id = :msg_id AND "user" = :user""",
-            msg_id=msg_id,
+            """DELETE FROM message_details WHERE id IN :msg_ids AND "user" = :user""",
+            msg_ids=msg_ids,
             user=bot_conn_info[m.conn]['user'].id,
         )
         if rowcount:
-            app.logger.warning(f"Deleted message with id {msg_id}")
+            app.logger.warning(f"Deleted message with ids {msg_ids}")
         else:
-            app.logger.warning(f"(apparently?) failed to delete message with id {msg_id}")
+            app.logger.warning(f"(apparently?) failed to delete message with ids {msg_ids}")
 
 
 @needs_app_context
