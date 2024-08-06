@@ -143,8 +143,8 @@ class ChallengeBot(Bot):
     def handle_request_read(self, req):
         room_token = req[b'room_token']
         session_id = req[b'session_id']
-        if session_id in self.retry_record:
-            if self.retry_record[session_id] >= self.retry_limit:
+        if session_id in self.retry_record and room_token in self.retry_record[session_id]:
+            if self.retry_record[session_id][room_token] >= self.retry_limit:
                 return bt_serialize("JAIL FOREVER")
 
         if session_id in self.retry_jail and room_token in self.retry_jail[session_id]:
@@ -209,7 +209,7 @@ class ChallengeBot(Bot):
 
     def handle_refresh(self, msg_id, session_id, room_token):
         if session_id not in self.retry_record or room_token not in self.retry_record[session_id]:
-            self.retry_record[session_id][room_token] = 0
+            _set(self.retry_record, session_id, room_token, 0)
         if self.retry_record[session_id][room_token] >= self.retry_limit:
             return
 
@@ -223,7 +223,7 @@ class ChallengeBot(Bot):
             )
             print(f'Refresh timeout message id: {msg_id}')
             if session_id not in self.pending_delete or room_token not in self.pending_delete[session_id]:
-                self.pending_delete[session_id][room_token] = []
+                _set(self.pending_delete, session_id, room_token, [])
             self.pending_delete[session_id][room_token].append(msg_id)
         else:
             self.retry_record[session_id][room_token] += 1
@@ -262,7 +262,8 @@ class ChallengeBot(Bot):
         _delete(self.pending_requests, session_id, room_token)
 
     def handle_failure(self, msg_id, session_id, room_token):
-        _set(self.retry_record, session_id, room_token, 0)
+        if session_id not in self.retry_record or room_token not in self.retry_record[session_id]:
+            _set(self.retry_record, session_id, room_token, 0)
         self.retry_record[session_id][room_token] += 1
         retry_times_left = self.retry_limit - self.retry_record[session_id][room_token]
         remaining = f"{retry_times_left} " + "attempt" + ("s" if retry_times_left > 1 else "")
@@ -277,7 +278,9 @@ class ChallengeBot(Bot):
             whisper_target=session_id,
             no_bots=True,
         )
-        self.retry_jail[session_id][room_token] = time() + self.retry_timeout
+        _set(self.retry_jail, session_id, room_token, (time() + self.retry_timeout))
+        if session_id not in self.pending_delete or room_token not in self.pending_delete[session_id]:
+            _set(self.pending_delete, session_id, room_token, [])
         self.pending_delete[session_id][room_token].append(response_msg_id)
 
         self.delete_message(msg_id)
