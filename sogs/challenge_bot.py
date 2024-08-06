@@ -161,10 +161,11 @@ class ChallengeBot(Bot):
                 delete(self.pending_delete, session_id, room_token)
 
             self.refresh_capcha_handler(session_id, room_token)
-            file_path = self.challenges[session_id].file_name
+            captcha = self.challenges[session_id][room_token][0]
+            file_path = captcha.file_name
             file_meta = self.upload_file(file_path, room_token)
 
-            body = f"{self.challenges[session_id][0].question} "
+            body = f"{captcha.question} "
 
             refresh_times_left = self.retry_limit
             if session_id in self.retry_record and room_token in self.retry_record:
@@ -202,6 +203,8 @@ class ChallengeBot(Bot):
         return bt_serialize("OK")
 
     def refresh_capcha_handler(self, session_id, room_token):
+        if session_id not in self.challenges:
+            self.challenges[session_id] = dict()
         self.challenges[session_id][room_token] = (self.captcha_manager.refresh(), time())
 
     def handle_refresh(self, msg_id, session_id, room_token):
@@ -292,7 +295,9 @@ class ChallengeBot(Bot):
                 session_id in self.pending_requests
                 and room_token in self.pending_requests[session_id]
                 and msg_id == self.pending_requests[session_id][room_token]
-                and self.challenges[session_id] is not None
+                and session_id in self.challenges
+                and room_token in self.challenges[session_id]
+                and self.challenges[session_id][room_token] is not None
         ):
             print(f"reaction_posted, correct session_id, room, and msg_id")
             reaction = req[b'reaction'].decode('utf-8')
@@ -300,7 +305,7 @@ class ChallengeBot(Bot):
             if reaction == self.refresh_reaction:
                 print(f"{session_id} request refreshing challenge.")
                 self.handle_refresh(msg_id, session_id, room_token)
-            elif reaction == self.challenges[session_id][room_token].answer:
+            elif reaction == self.challenges[session_id][room_token][0].answer:
                 print(f"Granting permissions to {session_id} for room with token {room_token}")
                 self.handle_success(msg_id, session_id, room_token)
             else:
