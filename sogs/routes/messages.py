@@ -608,7 +608,7 @@ def message_react(room, msg_id, reaction):
 @auth.accessible_required
 def message_unreact(room, msg_id, reaction):
     """
-    Removes a reaction from a post this room.  The user must have read access in the room.  This
+    Removes a reaction from a post this room.  The user must have access in the room.  This
     only removes the user's own reaction but does not affect the reactions of other users.
 
     # URL Parameters
