@@ -12,10 +12,12 @@ def _delete(_dict, outer_key, inner_key):
     if len(_dict[outer_key]) == 0:
         del _dict[outer_key]
 
+
 def _set(_dict, outer_key, inner_key, value):
     if outer_key not in _dict:
         _dict[outer_key] = dict()
     _dict[outer_key][inner_key] = value
+
 
 class ChallengeBot(Bot):
 
