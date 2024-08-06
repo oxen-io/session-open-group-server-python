@@ -605,10 +605,10 @@ def message_react(room, msg_id, reaction):
 
 @messages.delete("/room/<Room:room>/reaction/<int:msg_id>/<path:reaction>")
 @auth.user_required
-@auth.accessible_required
+@auth.read_required
 def message_unreact(room, msg_id, reaction):
     """
-    Removes a reaction from a post this room.  The user must have access in the room.  This
+    Removes a reaction from a post this room.  The user must have read access in the room.  This
     only removes the user's own reaction but does not affect the reactions of other users.
 
     # URL Parameters
