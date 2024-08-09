@@ -173,9 +173,3 @@ class CaptchaManager:
             asyncio.run(self.batch_generate_captcha(20))
         return self.captcha_list.pop()
 
-
-if __name__ == '__main__':
-    captcha_manager = CaptchaManager()
-
-    from nacl.public import PrivateKey
-    print(PrivateKey.generate())

@@ -1,10 +1,5 @@
-from sogs.captcha import CaptchaManager
-import os
-from sogs.web import app
-import configparser
-import sqlalchemy.exc
-from sogs.bot import *
-import sogs.config as config
+from sogs.plugins.captcha import CaptchaManager
+from sogs.plugins_interface import *
 
 
 def _delete(_dict, outer_key, inner_key):
@@ -19,7 +14,7 @@ def _set(_dict, outer_key, inner_key, value):
     _dict[outer_key][inner_key] = value
 
 
-class ChallengeBot(Bot):
+class CaptchaPlugin(Plugin):
 
     def __init__(
             self,
@@ -45,102 +40,8 @@ class ChallengeBot(Bot):
         self.retry_record = {}  # map {session_id: {room_token : Int}}
         self.captcha_manager = CaptchaManager(initial_count=200)
 
-        Bot.__init__(self, sogs_address, sogs_pubkey, privkey, pubkey, display_name)
+        Plugin.__init__(self, sogs_address, sogs_pubkey, privkey, pubkey, display_name)
         self.register_request_read_handler(self.handle_request_read)
-
-    @staticmethod
-    def create_and_run(db=None, ini: str = "bot.ini"):
-        conf_ini = ini
-        if not os.path.exists(conf_ini):
-            app.logger.warning("bot.ini does not exist")
-            conf_ini = None
-
-        if not conf_ini:
-            return
-
-        app.logger.info(f"Loading bot config from {conf_ini}")
-        cp = configparser.ConfigParser()
-        cp.read(conf_ini)
-
-        # Mandatory configs
-        bot_privkey_hex_str = None
-        if cp.has_option('bot', 'privkey_hex'):
-            bot_privkey_hex_str = cp.get('bot', 'privkey_hex')
-        if not bot_privkey_hex_str:
-            app.logger.warning("bot private key hex missing")
-            return
-
-        sogs_key_hex_str = None
-        if cp.has_option('sogs', 'sogs_pubkey_hex'):
-            sogs_key_hex_str = cp.get('sogs', 'sogs_pubkey_hex')
-        if not sogs_key_hex_str:
-            app.logger.warning("sogs public key hex missing")
-            return
-
-        # Optional configs
-        bot_name = "Challenge Bot"
-        if cp.has_option('bot', 'name'):
-            bot_name = cp.get('bot', 'name')
-
-        bot_retry_limit = 3
-        if cp.has_option('bot', 'retry_limit'):
-            bot_retry_limit = cp.getint('bot', 'retry_limit')
-
-        bot_write_timeout = 0
-        if cp.has_option('bot', 'write_timeout'):
-            bot_write_timeout = cp.getint('bot', 'write_timeout')
-
-        bot_refresh_timeout = 60
-        if cp.has_option('bot', 'refresh_timeout'):
-            bot_refresh_timeout = cp.getint('bot', 'refresh_timeout')
-
-        bot_retry_timeout = 120
-        if cp.has_option('bot', 'retry_timeout'):
-            bot_retry_timeout = cp.getint('bot', 'retry_timeout')
-
-        sogs_address = config.OMQ_LISTEN
-        if cp.has_option('sogs', 'sogs_address'):
-            sogs_address = cp.get('sogs', 'sogs_address')
-
-        from nacl.public import PublicKey
-
-        sogs_key = PublicKey(HexEncoder.decode(str.encode(sogs_key_hex_str)))
-        sogs_key_bytes = sogs_key.encode()
-
-        privkey = SigningKey(HexEncoder.decode(str.encode(bot_privkey_hex_str)))
-        print(f"privkey: {privkey.encode(HexEncoder)}")
-        privkey_bytes = privkey.encode()
-        pubkey_bytes = privkey.verify_key.encode()
-        print(f"pubkey: {privkey.verify_key.encode(HexEncoder)}")
-        bot = ChallengeBot(
-            sogs_address,
-            sogs_key_bytes,
-            privkey_bytes,
-            pubkey_bytes,
-            bot_name,
-            write_timeout=bot_write_timeout,
-            retry_limit=bot_retry_limit,
-            retry_timeout=bot_retry_timeout,
-            refresh_timeout=bot_refresh_timeout
-        )
-
-        bot_key = SigningKey(bot.x_pub)
-
-        from .db import query
-
-        if db is not None:
-            try:
-                with db.transaction():
-                    query(
-                        "INSERT INTO bots (auth_key, global, approver, subscribe) VALUES (:key, 1, 1, 1)",
-                        key=bot_key.encode(),
-                    )
-
-                print(f"Bot({bot.x_pub.hex()}) has been added.")
-            except sqlalchemy.exc.IntegrityError:
-                print(f"Bot({bot.x_pub.hex()}) is already added.")
-
-        bot.run()
 
     def handle_request_read(self, req):
         room_token = req[b'room_token']

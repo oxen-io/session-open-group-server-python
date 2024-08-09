@@ -119,12 +119,6 @@ ap.add_argument(
     help="Add given key (as hex) as a bot (need to edit db to configure it for now, this is "
     "just to get the key into the db as a utf-8 string, as a convenience for testing)",
 )
-# TODO: Modify this help description
-ap.add_argument(
-    '--add-captcha',
-    help="Add a default challenge bot to send CAPTCHA to new members joining the community. The "
-         "configurations of the bot needs to be set in an ini file and given with this command."
-)
 vis_group = ap.add_mutually_exclusive_group()
 vis_group.add_argument(
     '--visible',
@@ -196,7 +190,6 @@ incompat = [
     ('--upgrade', args.upgrade),
     ('--check-upgrades', args.check_upgrades),
     ('--add-bot', args.add_bot),
-    ('--add-captcha', args.add_captcha),
 ]
 for i in range(1, len(incompat)):
     for j in range(0, i):
@@ -256,7 +249,6 @@ from . import web
 from .model.room import Room, get_rooms
 from .model.user import User, SystemUser, get_all_global_moderators
 from .model.exc import AlreadyExists, NoSuchRoom, NoSuchUser
-from sogs.challenge_bot import ChallengeBot
 
 web.appdb = db.get_conn()
 
@@ -619,9 +611,6 @@ elif args.add_bot:
         )
 
     print(f"Bot({args.add_bot}) has been added.")
-
-elif args.add_captcha:
-    ChallengeBot.create_and_run(db, args.add_bot or 'bot.ini')
 
 else:
     print("Error: no action given", file=sys.stderr)

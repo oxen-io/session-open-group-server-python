@@ -9,7 +9,7 @@ from sogs.model.post import Post
 from typing import List
 
 
-class Bot:
+class Plugin:
 
     FILTER_ACCEPT = "OK"
     FILTER_REJECT = "REJECT"
@@ -18,7 +18,7 @@ class Bot:
 
     def __init__(self, sogs_address, sogs_pubkey, privkey, pubkey, display_name, *args):
         if privkey is None or pubkey is None:
-            raise Exception("SOGS Bot must have x25519 keys")
+            raise Exception("SOGS Plugin must have x25519 keys")
 
         self.display_name = display_name
         self.privkey = privkey
@@ -32,8 +32,8 @@ class Bot:
             privkey=self.x_priv, pubkey=self.x_pub, log_level=oxenmq.LogLevel.debug
         )
 
-        # FIXME: do we *care* to blind bots, or would it be useful/preferable to be able to identify
-        #        bots on multiple SOGS as the same?
+        # FIXME: do we *care* to blind plugins, or would it be useful/preferable to be able to identify
+        #        plugins on multiple SOGS as the same?
         from session_util import blinding
 
         blind25_keypair = blinding.blind25_key_pair(privkey, sogs_pubkey)
@@ -212,7 +212,7 @@ class Bot:
             request = bt_deserialize(m.dataview()[0])
             resp = self.filter(request)
             if resp not in self.FILTER_RESPONSES:
-                print(f"Bot.filter() must return one of {Bot.FILTER_RESPONSES}")
+                print(f"Bot.filter() must return one of {Plugin.FILTER_RESPONSES}")
                 return bt_serialize("REJECT")
             print(f"filter_message returning '{resp}' as filter response")
             return bt_serialize(resp)
@@ -515,7 +515,7 @@ def profanity_check(*args):
     return False
 
 
-class SogsFilterBot(Bot):
+class SogsFilterPlugin(Plugin):
     import re
 
     # Character ranges for different filters.  This is ordered because some are subsets of each other
@@ -566,7 +566,7 @@ class SogsFilterBot(Bot):
         self.from_sogs_config = True
         self.load_sogs_settings()
 
-        Bot.__init__(self, sogs_address, sogs_pubkey, privkey, pubkey, display_name)
+        Plugin.__init__(self, sogs_address, sogs_pubkey, privkey, pubkey, display_name)
 
     def load_sogs_settings(self):
         self.filter_mods = self.config.FILTER_MODS
@@ -724,11 +724,11 @@ class SogsFilterBot(Bot):
         return self.FILTER_ACCEPT
 
 
-class SlashTestBot(Bot):
+class SlashTestPlugin(Plugin):
 
     def __init__(self, sogs_address, sogs_pubkey, privkey, pubkey, display_name, *args):
 
-        Bot.__init__(self, sogs_address, sogs_pubkey, privkey, pubkey, display_name)
+        Plugin.__init__(self, sogs_address, sogs_pubkey, privkey, pubkey, display_name)
         self.register_pre_command('/test', self.handle_pre_slash)
         self.register_post_command('/test', self.handle_post_slash)
         self.register_pre_command('/test_handled', self.handle_pre_slash)
@@ -773,7 +773,7 @@ class SlashTestBot(Bot):
         return False
 
 
-class PermissionBot(Bot):
+class PermissionPlugin(Plugin):
 
     def __init__(
         self,
@@ -796,7 +796,7 @@ class PermissionBot(Bot):
         self.retry_timeout = retry_timeout
         self.write_timeout = write_timeout
 
-        Bot.__init__(self, sogs_address, sogs_pubkey, privkey, pubkey, display_name)
+        Plugin.__init__(self, sogs_address, sogs_pubkey, privkey, pubkey, display_name)
         self.register_request_read_handler(self.handle_request_read)
 
     def handle_request_read(self, req):
@@ -894,7 +894,7 @@ if __name__ == '__main__':
     # bot = TestBot("tcp://127.0.0.1:43210", server_key_bytes, privkey_bytes, pubkey_bytes)
     # bot = SogsFilterBot(privkey_bytes, pubkey_bytes, config_file='sogs.ini')
     # bot = PermissionBot("tcp://127.0.0.1:43210", server_key_bytes, privkey_bytes, pubkey_bytes, "Permissions Bot")
-    bot = SlashTestBot(
+    bot = SlashTestPlugin(
         "tcp://127.0.0.1:43210", server_key_bytes, privkey_bytes, pubkey_bytes, "Slash Bot"
     )
 

@@ -62,12 +62,12 @@ def needs_app_context(f):
 
 
 @needs_app_context
-def run_challenge_bot():
-    from sogs.challenge_bot import ChallengeBot
+def run_captcha():
+    import sogs.plugins as plugins
     try:
         app.logger.info("Challenge bot mule started.")
 
-        ChallengeBot.create_and_run(db)
+        plugins.run_captcha_plugin(db)
 
     except Exception:
         app.logger.error("mule died via exception:\n{}".format(traceback.format_exc()))

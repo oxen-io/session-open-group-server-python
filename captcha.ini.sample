@@ -1,9 +1,9 @@
-; SOGS challenge bot configuration.
+; SOGS CAPTCHA plugin configuration.
 
-[bot]
-; The name of the challenge bot, this will be displayed as the name of the bot on Session client
+[plugin]
+; The name of the captcha plugin, this will be displayed as the name of the plugin on Session client
 ;
-name = bot
+name = captcha
 
 ; The 32 bytes private key hex for the bot
 ;
