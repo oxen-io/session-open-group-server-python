@@ -1,0 +1,1 @@
+# SOGS CAPTCHA Plugin
