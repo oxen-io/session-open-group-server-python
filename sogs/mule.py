@@ -88,7 +88,7 @@ def run():
 def allow_conn(addr, pk, sn):
     with db.transaction():
 
-        row = query("SELECT id FROM bots WHERE auth_key = :key", key=pk).first()
+        row = query("SELECT id FROM plugins WHERE auth_key = :key", key=pk).first()
 
         if row:
             app.logger.debug(f"Plugin connected: {HexEncoder.encode(pk)}")
@@ -112,7 +112,7 @@ def inproc_fail(connid, reason):
 def get_relevant_plugins(where_clause, *args, room_id=None, room_token=None):
     plugin_ids = {}
     with db.transaction():
-        query_str = "SELECT id, required FROM bots WHERE global = 1 AND " + where_clause
+        query_str = "SELECT id, required FROM plugins WHERE global = 1 AND " + where_clause
         rows = query(query_str)
         for row in rows:
             required = False
@@ -130,7 +130,7 @@ def get_relevant_plugins(where_clause, *args, room_id=None, room_token=None):
                 return None
             room_id = id_row['id']
 
-        query_str = "SELECT bot, required FROM room_bots WHERE room = :room_id AND " + where_clause
+        query_str = "SELECT plugin, required FROM room_plugins WHERE room = :room_id AND " + where_clause
         rows = query(query_str, room_id=room_id)
         for row in rows:
             required = False
@@ -423,7 +423,7 @@ def plugin_hello(m: oxenmq.Message):
     new_plugin_conn = False
     with db.transaction():
 
-        row = query("SELECT id FROM bots WHERE auth_key = :key", key=m.conn.pubkey).first()
+        row = query("SELECT id FROM plugins WHERE auth_key = :key", key=m.conn.pubkey).first()
 
         if row is None:
             # TODO: would like to close conn in this case, but oxenmq only allows close on outgoing conns.
