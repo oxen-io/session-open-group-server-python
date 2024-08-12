@@ -54,7 +54,7 @@ CREATE TABLE inbox (
 CREATE INDEX inbox_recipient ON inbox(recipient);
 """,
     },
-    'bots': {
+    'plugins': {
         'sqlite': [
             """
 CREATE TABLE plugins (
@@ -80,7 +80,7 @@ CREATE TABLE plugins (
 );
 """,
     },
-    'room_bots': {
+    'room_plugins': {
         'sqlite': [
             """
 CREATE TABLE room_plugins (

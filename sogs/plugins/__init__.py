@@ -90,7 +90,7 @@ def run_captcha_plugin(db=None, ini: str = "captcha.ini"):
         try:
             with db.transaction():
                 query(
-                    "INSERT INTO bots (auth_key, global, approver, subscribe) VALUES (:key, 1, 1, 1)",
+                    "INSERT INTO plugins (auth_key, global, approver, subscribe) VALUES (:key, 1, 1, 1)",
                     key=plugin_key.encode(),
                 )
 
