@@ -47,7 +47,7 @@ class Plugin:
 
         self.last_post_time = 0
 
-        cat = self.omq.add_category("bot", access_level=oxenmq.AuthLevel.none)
+        cat = self.omq.add_category("plugin", access_level=oxenmq.AuthLevel.none)
         cat.add_request_command("filter_message", self.filter_message)
         cat.add_command("message_posted", self.message_posted)
         cat.add_command("reaction_posted", self.reaction_posted)
@@ -70,13 +70,13 @@ class Plugin:
         if len(pre_commands):
             print(f"calling register_pre_command with commands: {pre_commands}")
             self.omq.send(
-                self.conn, "bot.register_pre_commands", bt_serialize({'commands': pre_commands})
+                self.conn, "plugin.register_pre_commands", bt_serialize({'commands': pre_commands})
             )
         if len(post_commands):
             print(f"calling register_post_command with commands: {post_commands}")
             self.omq.send(
                 self.conn,
-                "bot.register_post_commands",
+                "plugin.register_post_commands",
                 bt_serialize({'commands': list(post_commands)}),
             )
 
@@ -85,7 +85,7 @@ class Plugin:
             resp = bt_deserialize(
                 self.omq.request_future(
                     self.conn,
-                    "bot.hello",
+                    "plugin.hello",
                     bt_serialize(self.session_id),
                     request_timeout=timedelta(seconds=10),
                 ).get()[0]
@@ -97,9 +97,9 @@ class Plugin:
                 self.running = True
                 return
 
-            print(f"Bot hello error from sogs: {resp}")
+            print(f"Plugin hello error from sogs: {resp}")
         except Exception as e:
-            print(f"Exception in bot hello: {e}")
+            print(f"Exception in plugin hello: {e}")
 
     def run(self):
         self.omq.start()
@@ -108,7 +108,7 @@ class Plugin:
         self.say_hello()
 
         # FIXME: there's definitely a better way to do this, but if SOGS restarts and
-        #        we reconnect, this makes SOGS recognize our omq connection as this bot.
+        #        we reconnect, this makes SOGS recognize our omq connection as this plugin.
         count = 0
         while True:
             count += 1
@@ -124,8 +124,8 @@ class Plugin:
         (if registered).
 
         Currently SOGS does nothing with the response from this request, but responding signals
-        the bot is done handling it.  This is so SOGS waits to respond to that user until e.g.
-        the bot has had the chance to whisper the user (so the user will see the whisper right away).
+        the plugin is done handling it.  This is so SOGS waits to respond to that user until e.g.
+        the plugin has had the chance to whisper the user (so the user will see the whisper right away).
         Any return value from the handler will be ignored until SOGS has use for it.
         """
         self.request_read_handler = handler
@@ -133,7 +133,7 @@ class Plugin:
         # if not running, finish_init() will do this once connected
         if self.running:
             self.omq.send(
-                self.conn, f"bot.register_pre_commands", bt_serialize({"commands": ["request_read"]})
+                self.conn, f"plugin.register_pre_commands", bt_serialize({"commands": ["request_read"]})
             )
 
     def handle_message_command(self, m: oxenmq.Message, pre_command: bool):
@@ -184,7 +184,7 @@ class Plugin:
         from sogs as a dictionary, including "command": command.
         sogs sends commands before database insertion and after.  Use pre_message/post_message to
         indicate which you want to handle.
-        Return True from your handler if sogs may continue to the next bot and/or the next step
+        Return True from your handler if sogs may continue to the next plugin and/or the next step
         in message handling, False if you handled the command and it should be considered finished
         or if you wanted to handle it but there was an error and sogs should discard it.
         """
@@ -197,7 +197,7 @@ class Plugin:
         if self.running:
             command_type = "pre_commands" if pre_command else "post_commands"
             self.omq.send(
-                self.conn, f"bot.register{command_type}", bt_serialize({"commands": [command]})
+                self.conn, f"plugin.register{command_type}", bt_serialize({"commands": [command]})
             )
 
     def register_pre_command(self, command, handler):
@@ -212,7 +212,7 @@ class Plugin:
             request = bt_deserialize(m.dataview()[0])
             resp = self.filter(request)
             if resp not in self.FILTER_RESPONSES:
-                print(f"Bot.filter() must return one of {Plugin.FILTER_RESPONSES}")
+                print(f"plugin.filter() must return one of {Plugin.FILTER_RESPONSES}")
                 return bt_serialize("REJECT")
             print(f"filter_message returning '{resp}' as filter response")
             return bt_serialize(resp)
@@ -246,7 +246,7 @@ class Plugin:
         from random import choice
 
         if not reply_settings:
-            print("Bot.reply called with no reply_settings")
+            print("plugin.reply called with no reply_settings")
             return
 
         rf = choice(reply_settings[0])
@@ -320,7 +320,7 @@ class Plugin:
 
         return self.omq.request_future(
             self.conn,
-            "bot.set_user_room_permissions",
+            "plugin.set_user_room_permissions",
             bt_serialize(req),
             request_timeout=timedelta(seconds=1),
         ).get()[0]
@@ -328,16 +328,16 @@ class Plugin:
     def delete_message(self, msg_id: int):
         """
         Tells sogs to delete the specified message.
-        The message must have been created by this bot.
+        The message must have been created by this plugin.
         """
         print(f"Delete message id {msg_id}")
-        self.omq.send(self.conn, "bot.delete_message", bt_serialize({'msg_id': msg_id}))
+        self.omq.send(self.conn, "plugin.delete_message", bt_serialize({'msg_id': msg_id}))
 
     def delete_messages(self, msg_ids: List[int]):
         print(f"Delete message id {msg_ids}")
-        self.omq.send(self.conn, "bot.delete_message", bt_serialize({'msg_ids': msg_ids}))
+        self.omq.send(self.conn, "plugin.delete_message", bt_serialize({'msg_ids': msg_ids}))
 
-    def post_message(self, room_token, body, *args, whisper_target=None, no_bots=False, files=None):
+    def post_message(self, room_token, body, *args, whisper_target=None, no_plugins=False, files=None):
         from sogs import session_pb2 as protobuf
         from time import time
 
@@ -371,10 +371,10 @@ class Plugin:
         sig = blind15_sign(self.privkey, self.sogs_pubkey, pbmsg)
 
         return self.inject_message(
-            room_token, self.session_id, pbmsg, sig, whisper_target=whisper_target, no_bots=no_bots, files=files
+            room_token, self.session_id, pbmsg, sig, whisper_target=whisper_target, no_plugins=no_plugins, files=files
         )
 
-    # This can be used either to post a message from the bot *or* to re-inject a now-approved user message
+    # This can be used either to post a message from the plugin *or* to re-inject a now-approved user message
     # Pass whisper_target=session_id if the message is a whisper to a user
     # Pass whisper_mods="yes" if the message is a mod whisper
     def inject_message(
@@ -386,7 +386,7 @@ class Plugin:
         *args,
         whisper_target=None,
         whisper_mods=False,
-        no_bots=False,
+        no_plugins=False,
         files=None,
     ):
         req = {
@@ -400,15 +400,15 @@ class Plugin:
         if whisper_target:
             req["whisper_target"] = whisper_target
 
-        if no_bots:
-            req["no_bots"] = True
+        if no_plugins:
+            req["no_plugins"] = True
 
         if files:
             req["files"] = [ file['id'] for file in files ]
 
         resp = bt_deserialize(
             self.omq.request_future(
-                self.conn, "bot.message", bt_serialize(req), request_timeout=timedelta(seconds=5)
+                self.conn, "plugin.message", bt_serialize(req), request_timeout=timedelta(seconds=5)
             ).get()[0]
         )
         if not b'msg_id' in resp:
@@ -423,7 +423,7 @@ class Plugin:
         return bt_deserialize(
             self.omq.request_future(
                 self.conn,
-                "bot.post_reactions",
+                "plugin.post_reactions",
                 bt_serialize(req),
                 request_timeout=timedelta(seconds=5),
             ).get()[0]
@@ -435,7 +435,7 @@ class Plugin:
         return bt_deserialize(
             self.omq.request_future(
                 self.conn,
-                "bot.remove_reactions",
+                "plugin.remove_reactions",
                 bt_serialize(req),
                 request_timeout=timedelta(seconds=5),
             ).get()[0]
@@ -454,7 +454,7 @@ class Plugin:
             resp = bt_deserialize(
                 self.omq.request_future(
                     self.conn,
-                    "bot.upload_file",
+                    "plugin.upload_file",
                     bt_serialize(req),
                     request_timeout=timedelta(seconds=3),
                 ).get()[0]
@@ -543,10 +543,10 @@ class SogsFilterPlugin(Plugin):
     Pass config_file=path_to_sogs.ini or config_file=True to load config from
     environment SOGS_CONFIG variable or 'sogs.ini' in pwd
 
-    Pass reply_name to override the default Session display name of this bot (SOGSBot)
+    Pass reply_name to override the default Session display name of this plugin (SOGS Plugin)
     """
 
-    def __init__(self, privkey, pubkey, *args, display_name="SOGSBot", config_file=None):
+    def __init__(self, privkey, pubkey, *args, display_name="SOGS Plugin", config_file=None):
 
         self.room_settings = {}
         self.filter_mods = False
@@ -764,7 +764,7 @@ class SlashTestPlugin(Plugin):
         msg_id = self.post_message(
             room_token,
             "Please work ffs!",
-            no_bots=False,
+            no_plugins=False,
             files=[file_meta,],
         )
 
@@ -815,7 +815,7 @@ class PermissionPlugin(Plugin):
             room_token,
             "Please react with a thumbs up to agree to the room rules.",
             whisper_target=session_id,
-            no_bots=True,
+            no_plugins=True,
         )
         if msg_id:
             react_resp = self.post_reactions(
@@ -855,14 +855,14 @@ class PermissionPlugin(Plugin):
                     room_token,
                     f"You may read now.  Study up, and you may learn to write in {self.write_timeout} seconds.",
                     whisper_target=session_id,
-                    no_bots=True,
+                    no_plugins=True,
                 )
             else:
                 self.post_message(
                     room_token,
                     f"You chose...poorly.  You may try again in {self.retry_timeout} seconds with a new prompt.",
                     whisper_target=session_id,
-                    no_bots=True,
+                    no_plugins=True,
                 )
                 self.retry_jail[session_id] = time() + self.retry_timeout
             self.delete_message(msg_id)
@@ -879,23 +879,29 @@ if __name__ == '__main__':
     """
     # server_key_hex = b"3689294e4e49dac8842746ae7011477610e846f30a4f30bedac684fb20f28f65"
     server_key_hex = b'ef5b3bd118ffd0abcb48731b6eb8a9037ee4ed7442f4599088b55bad9d8a480a'
-    bot_privkey_hex = b'489327e8db1e9f6e05c4ad4d75b8bef6aeb8ad78ae6b3d4a74b96455b7438e79'
+    plugin_privkey_hex = b'489327e8db1e9f6e05c4ad4d75b8bef6aeb8ad78ae6b3d4a74b96455b7438e79'
 
     from nacl.public import PublicKey
 
     server_key = PublicKey(HexEncoder.decode(server_key_hex))
     server_key_bytes = server_key.encode()
 
-    privkey = SigningKey(HexEncoder.decode(bot_privkey_hex))
+    privkey = SigningKey(HexEncoder.decode(plugin_privkey_hex))
     print(f"privkey: {privkey.encode(HexEncoder)}")
     privkey_bytes = privkey.encode()
     pubkey_bytes = privkey.verify_key.encode()
     print(f"pubkey: {privkey.verify_key.encode(HexEncoder)}")
-    # bot = TestBot("tcp://127.0.0.1:43210", server_key_bytes, privkey_bytes, pubkey_bytes)
-    # bot = SogsFilterBot(privkey_bytes, pubkey_bytes, config_file='sogs.ini')
-    # bot = PermissionBot("tcp://127.0.0.1:43210", server_key_bytes, privkey_bytes, pubkey_bytes, "Permissions Bot")
-    bot = SlashTestPlugin(
-        "tcp://127.0.0.1:43210", server_key_bytes, privkey_bytes, pubkey_bytes, "Slash Bot"
+    # plugin = TestPlugin(
+    #     "tcp://127.0.0.1:43210", server_key_bytes, privkey_bytes, pubkey_bytes
+    # )
+    # plugin = SogsFilterPlugin(
+    #     privkey_bytes, pubkey_bytes, config_file='sogs.ini'
+    # )
+    # plugin = PermissionPlugin(
+    #     "tcp://127.0.0.1:43210", server_key_bytes, privkey_bytes, pubkey_bytes, "Permissions Plugin"
+    # )
+    plugin = SlashTestPlugin(
+        "tcp://127.0.0.1:43210", server_key_bytes, privkey_bytes, pubkey_bytes, "Slash Test Plugin"
     )
 
-    bot.run()
+    plugin.run()

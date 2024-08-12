@@ -91,7 +91,7 @@ class CaptchaPlugin(Plugin):
                 room_token,
                 body,
                 whisper_target=session_id,
-                no_bots=True,
+                no_plugins=True,
                 files=[file_meta,]
             )
             print(f'Challenge message id: {msg_id}')
@@ -129,7 +129,7 @@ class CaptchaPlugin(Plugin):
                 room_token,
                 f"You can refresh in {timeout} second{'s' if timeout > 1 else ''}.",
                 whisper_target=session_id,
-                no_bots=True
+                no_plugins=True
             )
             print(f'Refresh timeout message id: {msg_id}')
             if session_id not in self.pending_delete or room_token not in self.pending_delete[session_id]:
@@ -146,7 +146,7 @@ class CaptchaPlugin(Plugin):
                 room_token,
                 "Congrats! You can read and write now.",
                 whisper_target=session_id,
-                no_bots=True,
+                no_plugins=True,
             )
             # Grant read and write permission immediately after receiving the correct reaction
             self.set_user_room_permissions(
@@ -157,7 +157,7 @@ class CaptchaPlugin(Plugin):
                 room_token,
                 f"Congrats! You can read now. You will be able to write in {self.write_timeout} seconds.",
                 whisper_target=session_id,
-                no_bots=True,
+                no_plugins=True,
             )
             # Grant read permission immediately after receiving the correct reaction
             self.set_user_room_permissions(
@@ -186,7 +186,7 @@ class CaptchaPlugin(Plugin):
             room_token,
             body,
             whisper_target=session_id,
-            no_bots=True,
+            no_plugins=True,
         )
         _set(self.retry_jail, session_id, room_token, (time() + self.retry_timeout))
         if session_id not in self.pending_delete or room_token not in self.pending_delete[session_id]:

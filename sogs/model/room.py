@@ -636,7 +636,7 @@ class Room:
             # response is meaningless for now; just used to wait for mule.
             from datetime import timedelta
 
-            bot_resp = synchronous_mule_request(
+            plugin_resp = synchronous_mule_request(
                 "worker.request_read", req, prefix=None, timeout=timedelta(seconds=3)
             )
 
@@ -933,7 +933,7 @@ class Room:
             pbmsg = pbmsg.SerializeToString() + b'\x80\x00'
 
             # Make a fake signing key based on prof_name and the server privkey (so that different
-            # names use different keys; otherwise the bot names overwrite each other in Session
+            # names use different keys; otherwise the plugin names overwrite each other in Session
             # clients when a later message has a new profile name).
             global filter_privkeys
             if prof_name in filter_privkeys:
@@ -1040,17 +1040,17 @@ class Room:
             )
             return msg_id
 
-    def bot_handle_message(self, message_args):
+    def plugin_handle_message(self, message_args):
         try:
-            app.logger.warning("Filtering via bots")
+            app.logger.warning("Filtering via plugins")
 
             return bt_deserialize(
                 synchronous_mule_request("worker.message_request", message_args, prefix=None)[0]
             )
         except Exception as e:
-            app.logger.warn(f"Bot filter exception: {e}")
+            app.logger.warn(f"Plugin filter exception: {e}")
             if not test_suite:
-                raise PostRejected(f"filtration rejected message (bot rejected)")
+                raise PostRejected(f"filtration rejected message (plugin rejected)")
 
     def add_post(
         self,
@@ -1125,21 +1125,21 @@ class Room:
         if user.alt_id:
             message_args["alt_id"] = user.using_id
 
-        bot_response = self.bot_handle_message(message_args)
+        plugin_response = self.plugin_handle_message(message_args)
 
-        if not b"ok" in bot_response:
+        if not b"ok" in plugin_response:
             error_str = (
-                bot_response[b"error"] if b"error" in bot_response else "an unknown error occurred"
+                plugin_response[b"error"] if b"error" in plugin_response else "an unknown error occurred"
             )
-            app.logger.warning(f"add_post, bot error: {error_str}")
+            app.logger.warning(f"add_post, plugin error: {error_str}")
             raise PostRejected(f"{error_str}")
 
-        if b"msg_id" not in bot_response:
+        if b"msg_id" not in plugin_response:
             # TODO: work out a response Session will like that says "message handled fine, but not inserted"
             #       e.g. for slash-command handling
             return dict()
 
-        msg_id = bot_response[b"msg_id"]
+        msg_id = plugin_response[b"msg_id"]
 
         with db.transaction():
 
@@ -1497,7 +1497,7 @@ class Room:
             if not whisper_for_user:
                 raise NoSuchPost(msg_id)
 
-    def add_reaction(self, user: User, msg_id: int, reaction: str, *args, send_to_bots=True):
+    def add_reaction(self, user: User, msg_id: int, reaction: str, *args, send_to_plugins=True):
         """
         Adds a reaction to the given post.  Returns True if the reaction was added, False if the
         reaction by this user was already present, throws on other errors.
@@ -1530,7 +1530,7 @@ class Room:
                 seqno = query("SELECT seqno FROM messages WHERE id = :msg", msg=msg_id).first()[0]
                 is_mod = self.check_moderator(user)
                 is_admin = self.check_admin(user)
-                if send_to_bots:
+                if send_to_plugins:
                     reaction_dict = {
                         'msg_id': msg_id,
                         'reaction': reaction,
