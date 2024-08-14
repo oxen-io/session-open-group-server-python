@@ -3,8 +3,24 @@ import os
 from sogs.web import app
 import configparser
 import sqlalchemy.exc
+from nacl.public import PrivateKey
 from sogs.plugins_interface import HexEncoder, SigningKey
 from sogs.plugins.captcha_plugin import CaptchaPlugin
+
+
+def get_plugin_privkey(key_file):
+    # generate seed as needed
+    if os.path.exists(key_file):
+        with open(key_file, 'rb') as f:
+            _privkey = PrivateKey(f.read())
+    else:
+        _privkey = PrivateKey.generate()
+        with open(os.open(key_file, os.O_CREAT | os.O_WRONLY, 0o400), 'wb') as f:
+            f.write(_privkey.encode())
+
+    _privkey_bytes = _privkey.encode()
+
+    return _privkey_bytes
 
 
 def run_captcha_plugin(db=None, ini: str = "captcha.ini"):
@@ -16,16 +32,18 @@ def run_captcha_plugin(db=None, ini: str = "captcha.ini"):
     if not conf_ini:
         return
 
+    key_file = "captcha_x25519"
+
     app.logger.info(f"Loading captcha plugin config from {conf_ini}")
     cp = configparser.ConfigParser()
     cp.read(conf_ini)
 
     # Mandatory configs
-    captcha_privkey_hex_str = None
-    if cp.has_option('plugin', 'privkey_hex'):
-        captcha_privkey_hex_str = cp.get('plugin', 'privkey_hex')
-    if not captcha_privkey_hex_str:
-        app.logger.warning("private key hex missing")
+    if cp.has_option('plugin', 'key_file'):
+        key_file = cp.get('plugin', 'key_file')
+    captcha_privkey_bytes = get_plugin_privkey(key_file)
+    if not captcha_privkey_bytes:
+        app.logger.warning("plugin private key missing")
         return
 
     sogs_key_hex_str = None
@@ -65,7 +83,7 @@ def run_captcha_plugin(db=None, ini: str = "captcha.ini"):
     sogs_key = PublicKey(HexEncoder.decode(str.encode(sogs_key_hex_str)))
     sogs_key_bytes = sogs_key.encode()
 
-    privkey = SigningKey(HexEncoder.decode(str.encode(captcha_privkey_hex_str)))
+    privkey = SigningKey(captcha_privkey_bytes)
     print(f"privkey: {privkey.encode(HexEncoder)}")
     privkey_bytes = privkey.encode()
     pubkey_bytes = privkey.verify_key.encode()
