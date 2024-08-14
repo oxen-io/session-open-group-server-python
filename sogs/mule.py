@@ -780,7 +780,7 @@ def on_reaction_posted(m: oxenmq.Message):
         for plugin_id in plugin_ids.keys():
             app.logger.warn(f"Sending reaction to plugin {plugin_id}")
             o.omq.send(plugin_conns[plugin_id], "plugin.reaction_posted", m.data())
-    except Exception:
+    except Exception as e:
         app.logger.warning(f"Error: {e}")
 
 
