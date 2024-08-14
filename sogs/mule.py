@@ -431,7 +431,7 @@ def plugin_hello(m: oxenmq.Message):
             return bt_serialize("NoSuchPlugin")
 
         plugin_conns[row['id']] = m.conn
-        if not m.conn in plugin_conn_info:
+        if m.conn not in plugin_conn_info:
             new_plugin_conn = True
             plugin_conn_info[m.conn] = {}
         plugin_conn_info[m.conn]['plugin_id'] = row['id']
@@ -773,12 +773,15 @@ def plugin_remove_reactions(m: oxenmq.Message):
 @needs_app_context
 @log_exceptions
 def on_reaction_posted(m: oxenmq.Message):
-    msg_dict = bt_deserialize(m.dataview()[0])
-    app.logger.warn(f"on_reaction_posted, reaction:\n{msg_dict}")
-    plugin_ids = get_relevant_plugins("subscribe = 1", room_id=msg_dict[b'room_id'])
-    for plugin_id in plugin_ids.keys():
-        app.logger.warn(f"Sending reaction to plugin {plugin_id}")
-        o.omq.send(plugin_conns[plugin_id], "plugin.reaction_posted", m.data())
+    try:
+        msg_dict = bt_deserialize(m.dataview()[0])
+        app.logger.warn(f"on_reaction_posted, reaction:\n{msg_dict}")
+        plugin_ids = get_relevant_plugins("subscribe = 1", room_id=msg_dict[b'room_id'])
+        for plugin_id in plugin_ids.keys():
+            app.logger.warn(f"Sending reaction to plugin {plugin_id}")
+            o.omq.send(plugin_conns[plugin_id], "plugin.reaction_posted", m.data())
+    except Exception:
+        app.logger.warning(f"Error: {e}")
 
 
 # NOTE: this should be a list of IDs; if the plugin cares, it will have stored them.
