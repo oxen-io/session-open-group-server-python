@@ -773,17 +773,13 @@ def plugin_remove_reactions(m: oxenmq.Message):
 @needs_app_context
 @log_exceptions
 def on_reaction_posted(m: oxenmq.Message):
-    try:
-        msg_dict = bt_deserialize(m.dataview()[0])
-        app.logger.warn(f"on_reaction_posted, reaction:\n{msg_dict}")
-        plugin_ids = get_relevant_plugins("subscribe = 1", room_id=msg_dict[b'room_id'])
-        for plugin_id in plugin_ids.keys():
+    msg_dict = bt_deserialize(m.dataview()[0])
+    app.logger.warn(f"on_reaction_posted, reaction:\n{msg_dict}")
+    plugin_ids = get_relevant_plugins("subscribe = 1", room_id=msg_dict[b'room_id'])
+    for plugin_id in plugin_ids.keys():
+        if plugin_id in plugin_conns:
             app.logger.warn(f"Sending reaction to plugin {plugin_id}")
-            if plugin_id in plugin_conns:
-                conn = plugin_conns[plugin_id]
-                o.omq.send(conn, "plugin.reaction_posted", m.data())
-    except Exception as e:
-        app.logger.warning(f"Error: {e}")
+            o.omq.send(plugin_conns[plugin_id], "plugin.reaction_posted", m.data())
 
 
 # NOTE: this should be a list of IDs; if the plugin cares, it will have stored them.
