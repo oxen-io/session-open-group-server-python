@@ -22,11 +22,10 @@ Copy the `captcha.ini.sample` to `captcha.ini`:
 cp captcha.ini.sample captcha.ini
 ```
 
-and edit it to change relevant config settings including privkey_hex, sogs_pubkey_hex, and sogs_address.
+and edit it to change relevant config settings including sogs_pubkey_hex, and sogs_address.
 Other settings such as plugin name can also be altered if required.
 
 ```ini
-privkey_hex = 32_BYTES_PRIVATE_KEY_HEX
 sogs_pubkey_hex = SOGS_PUBLIC_KEY_HEX
 sogs_address = OXENMQ_ADDRESS
 name = DISPLAY_NAME_OF_PLUGIN
