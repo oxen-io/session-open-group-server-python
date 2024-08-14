@@ -70,9 +70,7 @@ class CaptchaPlugin(Plugin):
             self.refresh_capcha_handler(session_id, room_token)
             captcha = self.challenges[session_id][room_token][0]
             file_path = captcha.file_name
-            file_meta = self.upload_file(
-                file_path, room_token, pixel_x_dimension=EmojiCaptcha.WIDTH, pixel_y_dimension=EmojiCaptcha.HEIGHT
-            )
+            file_meta = self.upload_file(file_path, room_token)
 
             body = f"{captcha.question} "
 
