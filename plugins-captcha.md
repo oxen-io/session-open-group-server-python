@@ -47,14 +47,6 @@ Restart the SOGS service by:
 uwsgi uwsgi-sogs.ini
 ```
 
-## Additional Note:
-
-`python-magic` and `exif` need to be installed:
-
-```bash
-pip install python-magic exif
-```
-
 `session-util` needs to be installed:
 
 ```bash

@@ -441,7 +441,7 @@ class Plugin:
             ).get()[0]
         )
 
-    def upload_file(self, file_path, room_token, display_filename=None):
+    def upload_file(self, file_path, room_token, display_filename=None, pixel_x_dimension=None, pixel_y_dimension=None):
         try:
             from os import path
             filename = display_filename if display_filename else path.basename(file_path)
@@ -471,15 +471,13 @@ class Plugin:
                 "size": len(file_contents)
             }
 
-            import magic
-            mime = magic.from_file(file_path, mime=True)
+            import mimetypes
+            mime = mimetypes.guess_type(file_path)
             metadata["contentType"] = mime
-            if mime.startswith("image"):
-                from exif import Image
-                img = Image(file_contents)
-                if img.has_exif:
-                    metadata["width"] = img.pixel_x_dimension
-                    metadata["height"] = img.pixel_y_dimension
+            if pixel_x_dimension:
+                metadata["width"] = pixel_x_dimension
+            if pixel_y_dimension:
+                metadata["height"] = pixel_y_dimension
 
             return metadata
 
