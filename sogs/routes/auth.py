@@ -324,7 +324,7 @@ def handle_http_auth():
             http.TOO_EARLY, "Invalid authentication: X-SOGS-Timestamp is too far from current time"
         )
 
-    user = User(session_id=session_id, autovivify=True, touch=False)
+    user = User(session_id=session_id, autovivify=True, touch=False, update_last_id=True)
     if user.banned:
         # If the user is banned don't even bother verifying the signature because we want to reject
         # the request whether or not the signature validation passes.

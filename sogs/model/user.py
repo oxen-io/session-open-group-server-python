@@ -35,6 +35,7 @@ class User:
         session_id: Optional[str] = None,
         autovivify: bool = True,
         touch: bool = False,
+        update_last_id=False,
     ):
         """
         Constructs a user from a pre-retrieved row *or* a session id or user primary key value.
@@ -48,7 +49,13 @@ class User:
         returning it.
         """
         self._touched = False
-        self._refresh(row=row, id=id, session_id=session_id, autovivify=autovivify)
+        self._refresh(
+            row=row,
+            id=id,
+            session_id=session_id,
+            autovivify=autovivify,
+            update_last_id=update_last_id,
+        )
 
         if touch:
             self._touch()
@@ -60,6 +67,7 @@ class User:
         id: Optional[int] = None,
         session_id: Optional[str] = None,
         autovivify: bool = True,
+        update_last_id=False,
     ):
         """
         Internal method to (re-)fetch details from the database; this is used during construction
@@ -84,13 +92,16 @@ class User:
 
             row = query("SELECT * FROM users WHERE session_id = :b25", b25=b25).first()
 
-            if not row and autovivify:
-                if not row:
-                    row = db.insert_and_get_row(
-                        "INSERT INTO users (session_id) VALUES (:s)", "users", "id", s=b25
-                    )
-                    # No need to re-touch this user since we just created them:
-                    self._touched = True
+            if (not row) and autovivify:
+                row = db.insert_and_get_row(
+                    "INSERT INTO users (session_id, last_id) VALUES (:s, :l)",
+                    "users",
+                    "id",
+                    s=b25,
+                    l=self.using_id,
+                )
+                # No need to re-touch this user since we just created them:
+                self._touched = True
 
         elif id is not None:
             row = query("SELECT * FROM users WHERE id = :u", u=id).fetchone()
@@ -98,8 +109,11 @@ class User:
         if row is None:
             raise NoSuchUser(session_id if session_id is not None else id)
 
-        self.id, self.session_id, self.created, self.last_active = (
-            row[c] for c in ('id', 'session_id', 'created', 'last_active')
+        if update_last_id:
+            db.query("UPDATE users SET last_id = :l WHERE id = :r", l=self.using_id, r=row['id'])
+
+        self.id, self.session_id, self.created, self.last_active, self.using_id = (
+            row[c] for c in ('id', 'session_id', 'created', 'last_active', 'last_id')
         )
         self.banned, self.global_moderator, self.global_admin, self.visible_mod = (
             bool(row[c]) for c in ('banned', 'moderator', 'admin', 'visible_mod')

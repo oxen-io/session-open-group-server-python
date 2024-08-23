@@ -452,7 +452,7 @@ elif update_room:
                 )
         else:
             for sid in args.add_moderators:
-                u = User(session_id=sid)
+                u = User(session_id=sid, update_last_id=True)
                 for room in rooms:
                     room.set_moderator(
                         u, admin=args.admin, visible=not args.hidden, added_by=sysadmin
@@ -514,7 +514,9 @@ elif update_room:
         vivify = args.add_perms or args.remove_perms
         users = []
         if args.users:
-            users = [User(session_id=sid, autovivify=vivify) for sid in args.users]
+            users = [
+                User(session_id=sid, autovivify=vivify, update_last_id=True) for sid in args.users
+            ]
 
         # users not specified means set room defaults
         if not len(users):
