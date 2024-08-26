@@ -178,7 +178,7 @@ CREATE TABLE users (
     moderator BOOLEAN NOT NULL DEFAULT FALSE, /* true = moderator of all rooms, and can add global bans */
     admin BOOLEAN NOT NULL DEFAULT FALSE, /* true = admin of all rooms, and can appoint global bans/mod/admins */
     visible_mod BOOLEAN NOT NULL DEFAULT FALSE, /* if true this user's moderator status is viewable by regular room users of all rooms */
-    last_id TEXT NOT NULL, /* last session_id seen from this user (05-, 15-, or 25-blinded), TODO drop after 25 transition complete*/
+    last_id TEXT, /* last session_id seen from this user (05-, 15-, or 25-blinded), TODO drop after 25 transition complete*/
     CHECK(NOT (banned AND (moderator OR admin))) /* someone cannot be banned *and* a moderator at the same time */
 );
 CREATE INDEX users_last_active ON users(last_active);

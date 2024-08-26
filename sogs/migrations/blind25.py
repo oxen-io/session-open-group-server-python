@@ -70,10 +70,10 @@ def migrate(conn, *, check_only):
 
     logging.warning("DB migration: Migrating tables to 25-blinded only")
 
+    conn.execute(f"ALTER TABLE users ADD COLUMN last_id TEXT")
     update_views(conn)
 
     if have_alt_id:  # only need to add last_id column to users
-        conn.execute(f"ALTER TABLE users ADD COLUMN last_id TEXT")
         for row in db.query("SELECT id FROM users", dbconn=conn):
             user_id = row["id"]
             for alt_id_row in db.query(

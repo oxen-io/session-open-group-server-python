@@ -110,7 +110,11 @@ class User:
             raise NoSuchUser(session_id if session_id is not None else id)
 
         if update_last_id:
-            db.query("UPDATE users SET last_id = :l WHERE id = :r", l=self.using_id, r=row['id'])
+            new_last_id = None
+            # if updating 'last_id' to 25-blinded, set it to None/NULL instead.
+            if self.using_id and not self.using_id.startswith('25'):
+                new_last_id = self.using_id
+            db.query("UPDATE users SET last_id = :l WHERE id = :r", l=new_last_id, r=row['id'])
 
         self.id, self.session_id, self.created, self.last_active, self.using_id = (
             row[c] for c in ('id', 'session_id', 'created', 'last_active', 'last_id')
