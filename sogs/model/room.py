@@ -632,6 +632,7 @@ class Room:
                 "session_id": user.using_id,
                 "room_id": self.id,
                 "room_token": self.token,
+                "room_name": self.name,
             }
             # response is meaningless for now; just used to wait for mule.
             from datetime import timedelta
@@ -1538,6 +1539,7 @@ class Room:
                         'session_id': user.using_id,
                         'room_id': self.id,
                         'room_token': self.token,
+                        'room_name': self.name,
                         'is_mod': is_mod,
                         'is_admin': is_admin,
                     }

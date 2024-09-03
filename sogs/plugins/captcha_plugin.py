@@ -45,6 +45,7 @@ class CaptchaPlugin(Plugin):
 
     def handle_request_read(self, req):
         room_token = req[b'room_token']
+        room_name = req[b'room_name'].decode('utf-8')
         session_id = req[b'session_id']
         if session_id in self.retry_record and room_token in self.retry_record[session_id]:
             if self.retry_record[session_id][room_token] >= self.retry_limit:
@@ -59,9 +60,9 @@ class CaptchaPlugin(Plugin):
         if session_id in self.pending_requests and room_token in self.pending_requests[session_id]:
             return bt_serialize("OK")
         print(f"request_read from {session_id}, id={req[b'user_id']}, room={room_token}")
-        return self.post_challenge(room_token, session_id)
+        return self.post_challenge(room_token, session_id, room_name)
 
-    def post_challenge(self, room_token, session_id):
+    def post_challenge(self, room_token, session_id, room_name):
         try:
             if session_id in self.pending_delete and room_token in self.pending_delete[session_id]:
                 self.delete_messages(self.pending_delete[session_id][room_token])
@@ -72,20 +73,27 @@ class CaptchaPlugin(Plugin):
             file_path = captcha.file_name
             file_meta = self.upload_file(file_path, room_token)
 
-            body = f"{captcha.question} "
-
             refresh_times_left = self.retry_limit
             if session_id in self.retry_record and room_token in self.retry_record[session_id]:
                 refresh_times_left -= self.retry_record[session_id][room_token]
-            remaining = f"{refresh_times_left} " + "time" + ("s" if refresh_times_left > 1 else "")
-            refresh = f" after {self.refresh_timeout} second{'s' if self.refresh_timeout > 1 else ''}" \
-                if self.refresh_timeout > 0 \
-                else ""
-            body += (f"You have hit the limit of refreshing the challenge. "
-                     f"Please try to solve the current challenge by reacting the emoji in the image.") \
-                if refresh_times_left == 0 \
-                else (f"You can refresh the picture by reacting with \U0001F504{refresh}. "
-                      f"You have {remaining} remaining to refresh.")
+
+            body = ""
+
+            # Case 1: User is coming to the community for the first time
+            if refresh_times_left == self.retry_limit:
+                body += (f"Solve this CAPTCHA to read and send messages in {room_name}. ")
+
+            # Case 1 and 2: User is coming to the community for the first time or has refreshed but hasn't reached the limit
+            if refresh_times_left > 0:
+                body += (f"React to the image with the emoji shown in the image. ")
+                if refresh_times_left == self.retry_limit:
+                    body += (f"You can refresh the CAPTCHA once every {self.refresh_timeout} seconds by reacting with \U0001F504. ")
+                body += f"You have {refresh_times_left} time{'s' if refresh_times_left > 1 else ''} remaining to refresh."
+
+            # Case 3: User has refreshed and has reached the limit
+            elif refresh_times_left == 0:
+                body += (f"You have hit the refresh limit. "
+                        f"Please try to solve the current CAPTCHA by reacting with the emoji in the image.")
 
             msg_id = self.post_message(
                 room_token,
@@ -113,7 +121,7 @@ class CaptchaPlugin(Plugin):
     def refresh_capcha_handler(self, session_id, room_token):
         _set(self.challenges, session_id, room_token, (self.captcha_manager.refresh(), time()))
 
-    def handle_refresh(self, msg_id, session_id, room_token):
+    def handle_refresh(self, msg_id, session_id, room_token, room_name):
         if session_id not in self.retry_record or room_token not in self.retry_record[session_id]:
             _set(self.retry_record, session_id, room_token, 0)
         if self.retry_record[session_id][room_token] >= self.retry_limit:
@@ -127,7 +135,7 @@ class CaptchaPlugin(Plugin):
             print(f'React response: {unreact_resp}')
             msg_id = self.post_message(
                 room_token,
-                f"You can refresh in {timeout} second{'s' if timeout > 1 else ''}.",
+                f"You can refresh the CAPTCHA in {timeout} second{'s' if timeout > 1 else ''}.",
                 whisper_target=session_id,
                 no_plugins=True
             )
@@ -138,13 +146,13 @@ class CaptchaPlugin(Plugin):
         else:
             self.retry_record[session_id][room_token] += 1
             self.delete_message(msg_id)
-            self.post_challenge(room_token, session_id)
+            self.post_challenge(room_token, session_id, room_name)
 
-    def handle_success(self, msg_id, session_id, room_token):
+    def handle_success(self, msg_id, session_id, room_token, room_name):
         if self.write_timeout == 0:
             self.post_message(
                 room_token,
-                "Congrats! You can read and write now.",
+                f"Congratulations! You can now read and send messages in {room_name}.",
                 whisper_target=session_id,
                 no_plugins=True,
             )
@@ -155,7 +163,7 @@ class CaptchaPlugin(Plugin):
         else:
             self.post_message(
                 room_token,
-                f"Congrats! You can read now. You will be able to write in {self.write_timeout} seconds.",
+                f"Congratulations! You will be able to read and send messages in {self.write_timeout} seconds.",
                 whisper_target=session_id,
                 no_plugins=True,
             )
@@ -177,10 +185,10 @@ class CaptchaPlugin(Plugin):
         self.retry_record[session_id][room_token] += 1
         retry_times_left = self.retry_limit - self.retry_record[session_id][room_token]
         remaining = f"{retry_times_left} " + "attempt" + ("s" if retry_times_left > 1 else "")
-        body = (f"Incorrect choice. I will send you another image in {self.retry_timeout} seconds. "
+        body = (f"That was the wrong emoji. You’ll receive a new CAPTCHA in {self.retry_timeout} seconds. "
                 f"You have {remaining} remaining.") if retry_times_left > 0 else \
-            (f"You have failed to identify the emoji in the image {self.retry_limit} times. "
-             f"Please contact the community administrator for assistance.")
+            (f"That was the wrong emoji. You have reached the maximum number of attempts. "
+             f"Contact an Administrator of the community for further assistance")
 
         response_msg_id = self.post_message(
             room_token,
@@ -202,6 +210,7 @@ class CaptchaPlugin(Plugin):
         msg_id = req[b'msg_id']
         session_id = req[b'session_id']
         room_token = req[b'room_token']
+        room_name = req[b'room_name'].decode('utf-8')
         if (
                 session_id in self.pending_requests
                 and room_token in self.pending_requests[session_id]
@@ -215,10 +224,10 @@ class CaptchaPlugin(Plugin):
 
             if reaction == self.refresh_reaction:
                 print(f"{session_id} request refreshing challenge.")
-                self.handle_refresh(msg_id, session_id, room_token)
+                self.handle_refresh(msg_id, session_id, room_token, room_name)
             elif reaction == self.challenges[session_id][room_token][0].answer:
                 print(f"Granting permissions to {session_id} for room with token {room_token}")
-                self.handle_success(msg_id, session_id, room_token)
+                self.handle_success(msg_id, session_id, room_token, room_name)
             else:
                 print(f"Wrong answer! Can't grant permission to {session_id}")
                 self.handle_failure(msg_id, session_id, room_token)
