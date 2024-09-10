@@ -336,6 +336,8 @@ def handle_http_auth():
         abort_with_reason(http.TOO_EARLY, "Invalid authentication: X-SOGS-Nonce cannot be reused")
 
     # Signature validation
+    # Cast the timestamp to a string because Android sometimes sends it as an int
+    ts_str = str(ts_str)
 
     # Signature should be on:
     #     SERVER_PUBKEY || NONCE || TIMESTAMP || METHOD || PATH || HBODY
